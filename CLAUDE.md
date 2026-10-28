@@ -43,6 +43,13 @@ La intranet copia código de las apps existentes, pero **no escribe en ellas**:
 - `src/modulos/<módulo>/`: cada módulo, cargado solo al entrar. Cada uno conserva su propio servidor de
   Apps Script, sus datos y (de momento) su propio inicio de sesión. Sus direcciones de servidor están en
   `src/modulos/<módulo>/config/entorno.ts`.
+- **Acceso único** (`src/nucleo/accesoUnico.ts`, `src/nucleo/sesion.ts`): el inicio de sesión de la intranet es el de
+  convivencia (su servidor identifica al profesorado). Para entrar en otro módulo, el servidor de convivencia firma un
+  vale de un solo uso (acción `valeIntranet`, 2 minutos) con la clave `SECRETO_INTRANET` de sus propiedades; el
+  servidor del módulo lo comprueba con la misma clave (acción `entrarConVale`) y abre su propia sesión. La clave se
+  crea con la función de editor `crearSecretoIntranet` (convivencia) y se copia a mano en las propiedades del script
+  de los demás servidores. Si un servidor aún no lo tiene, el módulo pide su propia contraseña como antes.
+  Al cerrar la sesión de convivencia se cierran también las de los demás módulos.
 - Módulos: `convivencia` (notas en `docs/convivencia.md`), `salidas` (notas en `docs/salidas.md`, servidor en
   `servidores/salidas/Code.gs`) y `guardias` (pendiente).
 
@@ -51,6 +58,8 @@ La intranet copia código de las apps existentes, pero **no escribe en ellas**:
 - `npm run build`: tipos y compilación.
 - `npm run test:convivencia`: servidor y app de convivencia con Drive simulado y datos ficticios.
 - `npm run test:salidas`: servidor de salidas (simulador) y lector de horarios de Séneca.
-- `npm test`: las dos anteriores.
+- `npx tsx pruebas/acceso_unico.test.mts`: vales entre el servidor de convivencia y el de salidas.
+- `npm test`: todas las anteriores.
+- Probar la intranet entera sin Google (servidores simulados): ver la cabecera de `pruebas/convivencia/servidor-local.mts`.
 - `npm run test:seguridad`: auditoría de convivencia. En PRUEBAS fallan SEC-11 y SEC-13, igual que en
   ConvivenciaIesbiClaude (comprueban la cuenta del centro y el cierre de sesión en el navegador).

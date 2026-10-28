@@ -834,6 +834,7 @@ function doPost(e) {
       case 'estadoClaves': return salida(estadoClaves(req));
       case 'tutoriaVistos': return salida(tutoriaVistos(req));
       case 'marcarTutoriaVista': return salida(marcarTutoriaVista(req));
+      case 'valeIntranet': return salida(valeIntranet(req));
       default: return salida({ ok: false, error: 'Acción desconocida.' });
     }
   } catch (err) {
@@ -1295,6 +1296,39 @@ function sesion(token, db) {
   if (!p || p.estado === 'INACTIVO') { cerrarSesion(token); fallo('NO_AUTH', 'Su cuenta ya no tiene acceso.'); }
   cache.put('SES_' + token, valor, DURACION_SESION_SEG);
   return { email: norm(email), prof: p, admin: esAdmin(p) };
+}
+
+// ------------------------------------------------------------------ Acceso único de la intranet
+
+// Este servidor identifica al profesorado de toda la intranet. Con la sesión abierta aquí, la app
+// pide un "vale" de un solo uso para otro módulo (salidas, guardias); el servidor de ese módulo lo
+// comprueba con la misma clave secreta (SECRETO_INTRANET en las propiedades de ambos scripts)
+// y abre su propia sesión sin pedir otra contraseña. El vale caduca a los 2 minutos.
+var MODULOS_INTRANET = ['salidas', 'guardias'];
+var VALIDEZ_VALE_MS = 120000;
+
+function valeIntranet(req) {
+  var secreto = propiedades().getProperty('SECRETO_INTRANET');
+  if (!secreto) fallo('SIN_ACCESO_UNICO', 'El acceso único de la intranet no está configurado en el servidor de convivencia.');
+  var db = leerDb();
+  var s = sesion(req.token, db);
+  var destino = String(req.destino || '');
+  if (MODULOS_INTRANET.indexOf(destino) < 0) fallo('DESTINO', 'Módulo desconocido.');
+  var datos = JSON.stringify({ email: s.email, destino: destino, exp: new Date().getTime() + VALIDEZ_VALE_MS,
+                               n: Utilities.getUuid() });
+  var firma = Utilities.base64Encode(Utilities.computeHmacSha256Signature(datos, secreto));
+  return { ok: true, vale: { datos: datos, firma: firma } };
+}
+
+/**
+ * EDITOR (una sola vez): crea la clave secreta del acceso único y la muestra en el registro.
+ * Esa misma clave se pega como propiedad SECRETO_INTRANET en el servidor de salidas (y en el de guardias).
+ * Si se vuelve a ejecutar, la clave cambia y hay que pegarla de nuevo en los otros servidores.
+ */
+function crearSecretoIntranet() {
+  var clave = (Utilities.getUuid() + Utilities.getUuid()).split('-').join('');
+  propiedades().setProperty('SECRETO_INTRANET', clave);
+  Logger.log('Clave del acceso único (cópiela en la propiedad SECRETO_INTRANET de los otros servidores): ' + clave);
 }
 
 // ------------------------------------------------------------------ Acciones

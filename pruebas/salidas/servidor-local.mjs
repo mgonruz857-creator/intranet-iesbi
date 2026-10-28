@@ -37,6 +37,9 @@ const e = crearEntorno({
     ['docente.uno@g.educaand.es', 'V', '09:30', '10:30', '3ESO_C']],
 });
 
+// Acceso único: la misma clave que el servidor local de convivencia (pruebas/convivencia/servidor-local.mts)
+if (process.env.SECRETO_INTRANET) e.props.SECRETO_INTRANET = process.env.SECRETO_INTRANET;
+
 const inicioReal = Date.now();
 const inicioSim = process.env.SIM_DESDE ? madrid(...process.env.SIM_DESDE.split(' ')).getTime() : inicioReal;
 const ahora = () => new Date(inicioSim + (Date.now() - inicioReal));

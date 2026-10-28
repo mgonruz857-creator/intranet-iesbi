@@ -16,6 +16,14 @@ en las propiedades del script, sesión de 6 h) y mismos códigos de grupo e iden
 - `src/`: la app. `src/modulos/salidas/config/entorno.ts (el entorno se elige en src/config/entorno.ts)` elige PRUEBAS / PRODUCCION y la URL del servidor.
 - `src/modulos/salidas/services/horarioSeneca.ts`: lee el PDF "Horarios de profesores" de Séneca (en el navegador, con pdf.js).
 
+## Acceso único (intranet)
+
+- Dentro de la intranet, el módulo entra con un vale firmado por el servidor de convivencia (acción `entrarConVale`),
+  si el script tiene la propiedad `SECRETO_INTRANET` (la misma clave que convivencia). El docente tiene que estar
+  en la pestaña Profesorado; si no, ve un aviso. Con ese acceso no se muestra "Cambiar contraseña" y salir de
+  aquí cierra la sesión de toda la intranet.
+- Sin la propiedad (o con el servidor antiguo), se pide la contraseña propia del módulo, como antes.
+
 ## Reglas (PRD)
 
 - Lunes a viernes. Bloque 1 08:30–11:30 (preferente A 09:30–10:30), recreo 11:30–12:00 sin salidas,

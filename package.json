@@ -11,7 +11,8 @@
     "test:convivencia": "for f in pruebas/convivencia/*.test.mts; do echo \"== $f\"; tsx \"$f\" || exit 1; done",
     "test:seguridad": "tsx pruebas/convivencia/seguridad.ts",
     "test:salidas": "node --experimental-strip-types --no-warnings --test pruebas/salidas/servidor.test.mjs pruebas/salidas/horario.test.mts",
-    "test": "npm run test:convivencia && npm run test:salidas"
+    "test": "npm run test:convivencia && npm run test:salidas && npm run test:acceso",
+    "test:acceso": "tsx pruebas/acceso_unico.test.mts"
   },
   "dependencies": {
     "html2canvas": "^1.4.1",

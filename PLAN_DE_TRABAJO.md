@@ -25,8 +25,12 @@ Igual que con convivencia: los cambios nuevos de salidas, mejor hacerlos ya en l
 
 ## Fase 3 – Acceso único
 
-- [ ] Un solo inicio de sesión: el servidor de convivencia identifica y emite un vale firmado que aceptan
-      los demás servidores. Requiere nueva versión del servidor: primero en PRUEBAS.
+- [x] Un solo inicio de sesión en la portada (el de convivencia); salidas entra sola con un vale firmado.
+- [x] Servidores: `valeIntranet` + `crearSecretoIntranet` (convivencia) y `entrarConVale` (salidas, v1.1.0).
+- [x] Pruebas: `pruebas/acceso_unico.test.mts` y prueba completa en el navegador con servidores simulados.
+- [ ] Pegar los dos servidores de PRUEBAS en Apps Script, crear la clave y copiarla (Miguel Ángel).
+- [ ] Probar en la web de pruebas.
+- Pendiente para producción: lo mismo con los servidores del centro, cuando se decida pasar la intranet.
 
 ## Fase 4 – Guardias
 

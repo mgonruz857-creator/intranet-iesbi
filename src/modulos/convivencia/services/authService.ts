@@ -7,6 +7,7 @@ import { guardarDatosIniciales } from './datosIniciales';
 import { Profesor } from '../types/convivencia';
 import { StorageService } from './storageService';
 import { llamarApi } from './apiService';
+import { alCerrarSesionConvivencia } from '../../../nucleo/sesion';
 
 const SESSION_KEY = 'sigc_bi_auth_user_v2';
 const SESSION_TYPE_KEY = 'sigc_bi_session_type_v1';
@@ -348,6 +349,8 @@ export class AuthService {
         if (mensaje) sessionStorage.setItem(LOGOUT_MSG_KEY, mensaje);
         else sessionStorage.removeItem(LOGOUT_MSG_KEY);
       }
+      // Intranet: la sesión de convivencia es la de toda la intranet; se cierran también las de los demás módulos
+      alCerrarSesionConvivencia();
     } catch {
       // Ignorar excepciones de storage
     }

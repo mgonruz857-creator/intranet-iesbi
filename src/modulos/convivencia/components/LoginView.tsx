@@ -36,9 +36,16 @@ import juntaLogo from '../assets/images/junta_andalucia_logo.jpg';
 
 interface LoginViewProps {
   onLoginSuccess: (user: Profesor) => void;
+  /** En la portada de la intranet se muestra el nombre de la intranet en lugar del de SIGC-BI */
+  titulo?: string;
+  subtitulo?: string;
 }
 
-export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
+export const LoginView: React.FC<LoginViewProps> = ({
+  onLoginSuccess,
+  titulo = 'SIGC-BI',
+  subtitulo = 'Sistema de Convivencia y Carnet de Puntos',
+}) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -193,10 +200,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
         </div>
 
         <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
-          SIGC-BI
+          {titulo}
         </h1>
         <p className="text-xs font-semibold text-sky-800 uppercase tracking-wider mt-0.5">
-          Sistema de Convivencia y Carnet de Puntos
+          {subtitulo}
         </p>
         <p className="text-xs text-slate-500 font-medium mt-1">
           IES Blas Infante · Córdoba (Código Centro: 14007180)

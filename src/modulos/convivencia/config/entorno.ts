@@ -50,7 +50,8 @@ const CONFIG: Record<Entorno, ConfigDrive> = {
 const ACTUAL = CONFIG[ENTORNO];
 
 export const ES_ENTORNO_PRUEBAS: boolean = ENTORNO === 'PRUEBAS';
-export const URL_API_DRIVE: string = ACTUAL.urlApi;
+/** En desarrollo local se puede apuntar a otro servidor con VITE_URL_API_CONVIVENCIA (el simulador). */
+export const URL_API_DRIVE: string = import.meta.env?.VITE_URL_API_CONVIVENCIA || ACTUAL.urlApi;
 export const CUENTA_DRIVE: string = ACTUAL.cuenta;
 export const CARPETA_DRIVE_ID: string = ACTUAL.carpetaId;
 export const NOMBRE_CARPETA_DRIVE: string = ACTUAL.nombreCarpeta;

@@ -24,7 +24,7 @@
 
 // ───────────────────────── Configuración ─────────────────────────
 
-var VERSION = '1.0.0';
+var VERSION = '1.1.0';
 var ZONA = 'Europe/Madrid';
 var DOMINIO = '@g.educaand.es';
 var CUPO_GLOBAL = 5;
@@ -94,7 +94,9 @@ var MENSAJES = {
   'ERROR_NO_SE_PUEDE_ANULAR': 'Solo puede anular una salida el docente que la autorizó y durante los ' + MINUTOS_PARA_ANULAR + ' primeros minutos.',
   'ERROR_SIN_PERMISO': 'Esta consulta es solo para el Equipo Directivo.',
   'ERROR_OCUPADO': 'El sistema está atendiendo otras peticiones. Inténtelo de nuevo en unos segundos.',
-  'ERROR_ACCION': 'Acción desconocida.'
+  'ERROR_ACCION': 'Acción desconocida.',
+  'SIN_ACCESO_UNICO': 'El acceso único de la intranet no está configurado en el servidor de salidas.',
+  'VALE_NO_VALIDO': 'No se ha podido comprobar su sesión de la intranet. Vuelva a iniciar sesión.'
 };
 
 // ───────────────────────── Entrada web ─────────────────────────
@@ -122,6 +124,7 @@ function atender_(req, ahora) {
     switch (req.accion) {
       case 'estadoCuenta': return estadoCuenta_(req);
       case 'login': return login_(req);
+      case 'entrarConVale': return entrarConVale_(req);
       case 'logout': cerrarSesion_(req.token); return { ok: true };
       case 'cambiarClave': return cambiarClave_(req);
     }
@@ -199,6 +202,28 @@ function login_(req) {
   }
   cache.remove('FALLOS_' + email);
   return { ok: true, token: crearSesion_(email), usuario: perfilPublico_(p), primerAcceso: primerAcceso };
+}
+
+/**
+ * Acceso único de la intranet: el servidor de convivencia, que identifica al profesorado, firma un vale
+ * de un solo uso con la clave SECRETO_INTRANET (la misma en las propiedades de ambos scripts).
+ * Si la firma es buena, no ha caducado y el docente está en la pestaña Profesorado, se abre sesión aquí.
+ */
+function entrarConVale_(req) {
+  var secreto = PropertiesService.getScriptProperties().getProperty('SECRETO_INTRANET');
+  if (!secreto) error_('SIN_ACCESO_UNICO');
+  var vale = req.vale || {};
+  var datos = String(vale.datos || '');
+  var firma = Utilities.base64Encode(Utilities.computeHmacSha256Signature(datos, secreto));
+  if (!datos || firma !== vale.firma) error_('VALE_NO_VALIDO');
+  var d = JSON.parse(datos);
+  if (d.destino !== 'salidas' || !(d.exp > new Date().getTime()) || !d.n) error_('VALE_NO_VALIDO');
+  var cache = CacheService.getScriptCache();
+  if (cache.get('VALE_' + d.n)) error_('VALE_NO_VALIDO');
+  cache.put('VALE_' + d.n, '1', 600);
+  var p = buscarProfesor_(d.email);
+  if (!p) error_('401_UNAUTHORIZED');
+  return { ok: true, token: crearSesion_(p.email), usuario: perfilPublico_(p), primerAcceso: false };
 }
 
 function cambiarClave_(req) {

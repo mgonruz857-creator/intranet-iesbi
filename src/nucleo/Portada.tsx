@@ -1,17 +1,27 @@
 import React from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, LogOut } from 'lucide-react';
 import { MODULOS } from './modulos';
 import { ES_ENTORNO_PRUEBAS } from '../config/entorno';
+import { cerrarSesionIntranet } from './accesoUnico';
+import type { Profesor } from '../modulos/convivencia/types/convivencia';
 import logo from '../modulos/convivencia/assets/images/logo_rectangular_iesbi.png';
 
-export const Portada: React.FC = () => (
+export const Portada: React.FC<{ usuario: Profesor }> = ({ usuario }) => (
   <div className="min-h-screen bg-gradient-to-br from-sky-50/40 via-slate-50 to-blue-50/30 flex flex-col">
     {ES_ENTORNO_PRUEBAS && (
       <div className="w-full bg-amber-400 text-amber-950 text-center text-sm font-semibold py-1.5 px-4">
         ENTORNO DE PRUEBAS · Datos ficticios · No introducir datos reales del alumnado
       </div>
     )}
-    <main className="flex-1 w-full max-w-4xl mx-auto px-4 py-10">
+    <div className="w-full max-w-4xl mx-auto px-4 pt-4 flex items-center justify-end gap-3 text-sm">
+      <span className="text-slate-500 truncate">{[usuario.nombre, usuario.apellidos].filter(Boolean).join(' ')}</span>
+      <button onClick={cerrarSesionIntranet}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-red-50 hover:text-red-700">
+        <LogOut className="w-4 h-4" />
+        Cerrar sesión
+      </button>
+    </div>
+    <main className="flex-1 w-full max-w-4xl mx-auto px-4 py-8">
       <header className="flex flex-col items-center text-center gap-4 mb-10">
         <img src={logo} alt="IES Blas Infante" className="h-16 w-auto" />
         <div>

@@ -21,7 +21,7 @@ lo diga expresamente.
   implementación**. Si solo afecta a tareas programadas o funciones de editor → basta con pegar y guardar.
 - Si se añaden permisos nuevos (correo, tareas…), Google los pide al ejecutar una función desde el editor:
   avisar de que **marque todas las casillas**.
-- Funciones de editor existentes: `restablecerClaveAdministrador`, `diagnosticoDatos`,
+- Funciones de editor existentes: `crearSecretoIntranet` (acceso único de la intranet; ver CLAUDE.md), `restablecerClaveAdministrador`, `diagnosticoDatos`,
   `activarResumenDiario`, `probarResumenTutores`, `enviarResumenTutores`, `desactivarResumenDiario`,
   `revisarVersionesDatos` (solo lee las versiones de Drive), `restaurarUltimaVersionValida` (si el archivo está vacío o dañado),
   `activarCopiasDiarias`, `copiaSeguridadDiaria`, `listarCopiasDiarias`, `restaurarCopiaDiaria` (con `FECHA_COPIA_A_RESTAURAR`), `desactivarCopiasDiarias`
