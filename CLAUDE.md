@@ -43,11 +43,14 @@ La intranet copia código de las apps existentes, pero **no escribe en ellas**:
 - `src/modulos/<módulo>/`: cada módulo, cargado solo al entrar. Cada uno conserva su propio servidor de
   Apps Script, sus datos y (de momento) su propio inicio de sesión. Sus direcciones de servidor están en
   `src/modulos/<módulo>/config/entorno.ts`.
-- Módulos: `convivencia` (notas en `docs/convivencia.md`), `salidas` y `guardias` (pendientes).
+- Módulos: `convivencia` (notas en `docs/convivencia.md`), `salidas` (notas en `docs/salidas.md`, servidor en
+  `servidores/salidas/Code.gs`) y `guardias` (pendiente).
 
 ## Pruebas
 
 - `npm run build`: tipos y compilación.
 - `npm run test:convivencia`: servidor y app de convivencia con Drive simulado y datos ficticios.
+- `npm run test:salidas`: servidor de salidas (simulador) y lector de horarios de Séneca.
+- `npm test`: las dos anteriores.
 - `npm run test:seguridad`: auditoría de convivencia. En PRUEBAS fallan SEC-11 y SEC-13, igual que en
   ConvivenciaIesbiClaude (comprueban la cuenta del centro y el cierre de sesión en el navegador).

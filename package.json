@@ -9,12 +9,15 @@
     "preview": "vite preview",
     "lint": "tsc --noEmit -p .",
     "test:convivencia": "for f in pruebas/convivencia/*.test.mts; do echo \"== $f\"; tsx \"$f\" || exit 1; done",
-    "test:seguridad": "tsx pruebas/convivencia/seguridad.ts"
+    "test:seguridad": "tsx pruebas/convivencia/seguridad.ts",
+    "test:salidas": "node --experimental-strip-types --no-warnings --test pruebas/salidas/servidor.test.mjs pruebas/salidas/horario.test.mts",
+    "test": "npm run test:convivencia && npm run test:salidas"
   },
   "dependencies": {
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
     "lucide-react": "^0.546.0",
+    "pdfjs-dist": "^4.10.38",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "xlsx": "^0.18.5"

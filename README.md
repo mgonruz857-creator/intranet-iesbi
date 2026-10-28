@@ -3,7 +3,7 @@
 Aplicaciones del centro para el profesorado en una sola web:
 
 - **Convivencia** (SIGC-BI): partes, carnet de puntos, sanciones, Aula PAC y tutoría.
-- **Salidas al baño**: próximamente.
+- **Salidas al baño**: autorizar y registrar las salidas del alumnado durante las clases.
 - **Guardias**: próximamente.
 
 Esta copia es la de **PRUEBAS** (datos ficticios): https://mgonruz857-creator.github.io/intranet-iesbi/
@@ -14,7 +14,7 @@ La app de convivencia del centro sigue en https://convivenciaiesbi.github.io/ y 
 npm install
 npm run dev               # http://localhost:3000
 npm run build
-npm run test:convivencia
+npm test
 ```
 
 Notas técnicas y normas de trabajo: [CLAUDE.md](CLAUDE.md) y [PLAN_DE_TRABAJO.md](PLAN_DE_TRABAJO.md).

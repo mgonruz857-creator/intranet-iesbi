@@ -1,0 +1,27 @@
+/**
+ * Configuración del entorno, igual que en la app de convivencia.
+ *
+ * PRUEBAS: hoja de cálculo con alumnado ficticio en la cuenta de Miguel Ángel.
+ * PRODUCCION: hoja de cálculo del centro (14007180.aplicaciones@g.educaand.es).
+ * La dirección del servidor (urlApi) es la de la implementación de Apps Script de cada hoja.
+ */
+
+// El entorno se elige para toda la intranet en src/config/entorno.ts
+import { ENTORNO, type Entorno } from '../../../config/entorno';
+
+const CONFIG: Record<Entorno, { urlApi: string; cuenta: string }> = {
+  PRUEBAS: {
+    urlApi:
+      'https://script.google.com/macros/s/AKfycbxWBnl7uvq5jGjeMCK2Baat20Q2vOHybmVp40rJeIcdbrGwCAd49T6c9P0vFXQU31CW/exec',
+    cuenta: 'mgonruz857@g.educaand.es',
+  },
+  PRODUCCION: {
+    urlApi: '', // pegar aquí la URL /exec de la implementación del centro
+    cuenta: '14007180.aplicaciones@g.educaand.es',
+  },
+};
+
+export const ES_ENTORNO_PRUEBAS = ENTORNO === 'PRUEBAS';
+/** En desarrollo local se puede apuntar a otro servidor con VITE_URL_API_SALIDAS (p. ej. el simulador). */
+export const URL_API: string = import.meta.env.VITE_URL_API_SALIDAS || CONFIG[ENTORNO].urlApi;
+export const CUENTA_DATOS = CONFIG[ENTORNO].cuenta;

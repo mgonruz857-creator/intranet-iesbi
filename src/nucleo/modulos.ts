@@ -28,7 +28,7 @@ export const MODULOS: Modulo[] = [
     nombre: 'Salidas al baño',
     descripcion: 'Autorizar y registrar las salidas del alumnado durante las clases.',
     icono: DoorOpen,
-    disponible: false,
+    disponible: true,
   },
   {
     id: 'guardias',

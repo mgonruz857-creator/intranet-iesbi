@@ -14,9 +14,14 @@ convivenciaiesbi.github.io (la app del centro) no se toca en ninguna fase.
 Mientras convivencia siga cambiando en ConvivenciaIesbiClaude, hay que traer esos cambios aquí.
 Propuesta: a partir de ahora, los cambios nuevos de convivencia se hacen en la intranet.
 
-## Fase 2 – Salidas al baño
+## ✅ Fase 2 – Salidas al baño (PRUEBAS)
 
-- [ ] Copiar `salidas-bano-iesbi` como módulo (`src/modulos/salidas`, `servidores/salidas/Code.gs`, pruebas).
+- [x] Copiada de `salidas-bano-iesbi` (e9be6b7): `src/modulos/salidas`, `servidores/salidas/Code.gs`, `pruebas/salidas`.
+- [x] Usa el mismo servidor de PRUEBAS que ya tenía (hoja con alumnado ficticio). PRODUCCION sigue sin URL.
+- [x] Pruebas pasando (15) y probada en el navegador con el simulador.
+- [ ] Probar en la web de pruebas.
+
+Igual que con convivencia: los cambios nuevos de salidas, mejor hacerlos ya en la intranet.
 
 ## Fase 3 – Acceso único
 

@@ -7,6 +7,7 @@ import { useRuta } from './nucleo/ruta';
 // Cada módulo se descarga solo al entrar en él
 const CARGADORES: Partial<Record<IdModulo, React.LazyExoticComponent<React.ComponentType>>> = {
   convivencia: lazy(() => import('./modulos/convivencia/App')),
+  salidas: lazy(() => import('./modulos/salidas/App')),
 };
 
 export default function App() {
