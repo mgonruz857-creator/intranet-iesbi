@@ -74,8 +74,12 @@ Pasos:
 - [x] Paso 3: salidas lee del servidor central (servidor de salidas 1.2.0). Con la propiedad `URL_SERVIDOR_CENTRAL`
       toma profesorado, alumnado, horarios y permiso DIRECTIVO de `datosCentro` (caché de 10 minutos); sus pestañas
       Profesorado, Alumnado y Horario dejan de usarse. Pruebas en `pruebas/salidas_central.test.mts`.
-- [ ] Pegar el servidor de salidas 1.2.0 en PRUEBAS, añadir `URL_SERVIDOR_CENTRAL` y ejecutar `probarServidorCentral`
-      (Miguel Ángel).
+- [x] Pegar el servidor de salidas 1.2.0 en PRUEBAS, añadir `URL_SERVIDOR_CENTRAL` y ejecutar `probarServidorCentral`
+      (Miguel Ángel, 19/11: funciona).
+
+Drive (19/11/2026): todo lo de la intranet va en la carpeta `proyectoIntranet` del Drive de Miguel Ángel
+(`proyectoIntranet/PRUEBAS/`: API_Intranet_PRUEBAS, hoja de salidas, SIGC_PRUEBAS y lo nuevo, como guardias;
+más adelante `proyectoIntranet/PRODUCCION/`). Siempre en Mi unidad, mismo propietario. La convivencia en uso no se mueve.
 - [ ] Paso 4: guardias.
 - [ ] Al final: cambio de curso desde el panel.
 
