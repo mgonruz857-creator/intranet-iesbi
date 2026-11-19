@@ -105,3 +105,6 @@ Cuestiones a plantear antes de empezar:
 
 - [ ] Transferir el repositorio a la organización `intranetiesbi`, renombrarlo `intranetiesbi.github.io`
       y publicar con PRODUCCION, cuando Miguel Ángel lo diga.
+- [ ] Al pasar a producción (acordado el 19/11/2026, NO antes): quitar el botón "Vaciar alumnos y partes" y el
+      recuadro "Infraestructura Google Drive & ETL de Ingesta" (`EtlImportView`); en Copias de seguridad dejar solo
+      el botón "Descargar copia completa".
