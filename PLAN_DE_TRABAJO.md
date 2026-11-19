@@ -35,8 +35,7 @@ Igual que con convivencia: los cambios nuevos de salidas, mejor hacerlos ya en l
 
 - [x] Ausencias, cuadrante de guardias (horario de Séneca), reparto automático, registro y recuento (19/11/2026,
       ver `docs/guardias.md`). Motivo solo para JEFATURA; recuento desde el 1 de septiembre.
-- [ ] Miguel Ángel: pegar el servidor central nuevo, crear el servidor de guardias de pruebas (hoja en
-      proyectoIntranet/PRUEBAS) y pasar su URL para ponerla en `src/modulos/guardias/config/entorno.ts`.
+- [x] Servidor de guardias de pruebas creado (Guardias_PRUEBAS en proyectoIntranet/PRUEBAS) y conectado (19/11).
 - [ ] Volver a subir el PDF de horarios de Séneca en el panel (para guardar las horas de guardia y las aulas).
 
 ## Pendiente (cuando proceda) – Panel de control unificado
