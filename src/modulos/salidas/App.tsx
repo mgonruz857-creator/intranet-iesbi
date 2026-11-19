@@ -33,6 +33,8 @@ export default function App() {
   // Sin sesión propia, se intenta primero el acceso único de la intranet
   const [entrando, setEntrando] = useState(() => !tokenGuardado());
   const [sinAlta, setSinAlta] = useState('');
+  // Solo en PRUEBAS: por qué no ha funcionado el acceso único (para configurarlo)
+  const [motivoSinAccesoUnico, setMotivoSinAccesoUnico] = useState('');
 
   const avisar = useCallback((texto: string, error = false) => setAviso({ texto, error, id: Date.now() }), []);
 
@@ -68,10 +70,16 @@ export default function App() {
         entrar(r.token, r.usuario, false);
       } else if (r?.codigo === '401_UNAUTHORIZED') {
         setSinAlta(r.mensaje || 'Su cuenta no está dada de alta en Salidas al baño.');
-      } else if (r && r.codigo !== 'SIN_ACCESO_UNICO' && r.codigo !== 'ERROR_ACCION') {
+      } else if (r?.codigo === 'SIN_ACCESO_UNICO') {
+        setMotivoSinAccesoUnico('Acceso único no activo: falta la propiedad SECRETO_INTRANET en el servidor de salidas.');
+      } else if (r?.codigo === 'ERROR_ACCION') {
+        setMotivoSinAccesoUnico('Acceso único no activo: el servidor de salidas aún no tiene la versión nueva (falta "Nueva versión" en Gestionar implementaciones).');
+      } else if (r) {
         avisar(r.mensaje || 'No se ha podido entrar con la sesión de la intranet.', true);
-      } else if (!v.ok && !v.sinConfigurar) {
-        avisar(v.mensaje, true);
+      } else if (v.sinConfigurar) {
+        setMotivoSinAccesoUnico(v.mensaje || '');
+      } else {
+        avisar(v.mensaje || 'No se ha podido obtener el acceso.', true);
       }
       // Si el acceso único no está configurado en algún servidor, se pide la contraseña de este módulo
       setEntrando(false);
@@ -117,7 +125,14 @@ export default function App() {
           <a href="#/" className="inline-block mt-4 text-sm font-semibold text-sky-700 hover:underline">Volver a la intranet</a>
         </div>
       ) : !usuario ? (
-        <Login alEntrar={entrar} />
+        <>
+          {ES_ENTORNO_PRUEBAS && motivoSinAccesoUnico && (
+            <div className="max-w-md mx-auto mt-6 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+              {motivoSinAccesoUnico}
+            </div>
+          )}
+          <Login alEntrar={entrar} />
+        </>
       ) : (
         <>
           <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80">

@@ -25,8 +25,17 @@ export async function pedirVale(destino: 'salidas' | 'guardias'): Promise<Result
   const r = await llamarApi('valeIntranet', { token, destino }, 45000);
   if (r.ok && r.vale) return { ok: true, vale: r.vale as Vale };
   // Servidor de convivencia aún sin actualizar o sin la clave secreta: el módulo pide su propio acceso
-  const sinConfigurar = r.codigo === 'SIN_ACCESO_UNICO' || /desconocida/i.test(String(r.error || ''));
-  return { ok: false, sinConfigurar, mensaje: String(r.error || 'No se ha podido obtener el acceso.') };
+  const sinClave = r.codigo === 'SIN_ACCESO_UNICO';
+  const servidorAntiguo = /desconocida/i.test(String(r.error || ''));
+  return {
+    ok: false,
+    sinConfigurar: sinClave || servidorAntiguo,
+    mensaje: sinClave
+      ? 'Acceso único no activo: falta crear la clave en el servidor de convivencia (función crearSecretoIntranet).'
+      : servidorAntiguo
+        ? 'Acceso único no activo: el servidor de convivencia aún no tiene la versión nueva (falta "Nueva versión" en Gestionar implementaciones).'
+        : String(r.error || 'No se ha podido obtener el acceso.'),
+  };
 }
 
 /** Usuario con sesión en la intranet (null si no hay). Se comprueba también la inactividad. */
