@@ -14,7 +14,7 @@ en las propiedades del script, sesión de 6 h) y mismos códigos de grupo e iden
 - `servidores/salidas/Code.gs`: servidor. Va dentro de la hoja de cálculo (pestañas Profesorado, Alumnado,
   Historico_Salidas, Horario). Se pega tal cual en Apps Script.
 - `src/`: la app. `src/modulos/salidas/config/entorno.ts (el entorno se elige en src/config/entorno.ts)` elige PRUEBAS / PRODUCCION y la URL del servidor.
-- `src/modulos/salidas/services/horarioSeneca.ts`: lee el PDF "Horarios de profesores" de Séneca (en el navegador, con pdf.js).
+- `src/nucleo/seneca/horarioSeneca.ts`: lee el PDF "Horarios de profesores" de Séneca (en el navegador, con pdf.js).
 
 ## Acceso único (intranet)
 

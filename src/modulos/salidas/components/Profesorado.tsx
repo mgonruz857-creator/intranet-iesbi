@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FileUp, KeyRound, Save } from 'lucide-react';
 import { llamarApi } from '../services/api';
-import { buscarDocente, grupoAutomatico, interpretarPagina, type PaginaHorario } from '../services/horarioSeneca';
+import { buscarDocente, grupoAutomatico, interpretarPagina, type PaginaHorario } from '../../../nucleo/seneca/horarioSeneca';
 import { etiquetaGrupo } from '../tipos';
 
 interface Props {
@@ -112,7 +112,7 @@ function ImportarHorario({ docentes, grupos, avisar, alGuardar }: ImportarProps)
     if (!archivos.length) return;
     setLeyendo(true);
     try {
-      const { textosDelPdf } = await import('../services/leerPdf');
+      const { textosDelPdf } = await import('../../../nucleo/seneca/leerPdf');
       const leidas: PaginaHorario[] = [];
       for (const a of archivos) {
         for (const textos of await textosDelPdf(await a.arrayBuffer())) {

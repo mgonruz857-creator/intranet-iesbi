@@ -63,6 +63,37 @@ export function useSesionIntranet(): Profesor | null {
   return usuario;
 }
 
+export interface PermisosIntranet {
+  panel: boolean;
+  convivencia: 'ADMIN' | 'DOCENTE';
+  salidas: 'DOCENTE' | 'DIRECTIVO';
+  guardias: 'DOCENTE' | 'JEFATURA';
+}
+
+const CLAVE_PERMISOS = 'intranet_permisos';
+
+/** Permisos del docente en cada módulo, según el servidor central (null mientras llegan o si es un servidor antiguo). */
+export function usePermisosIntranet(usuario: Profesor | null): PermisosIntranet | null {
+  const email = usuario?.email || '';
+  const [permisos, setPermisos] = useState<PermisosIntranet | null>(() => {
+    try {
+      const g = JSON.parse(sessionStorage.getItem(CLAVE_PERMISOS) || 'null');
+      return g && g.email === email ? g.permisos : null;
+    } catch { return null; }
+  });
+  useEffect(() => {
+    if (!email) { setPermisos(null); return; }
+    let vigente = true;
+    llamarApi('perfilIntranet', { token: AuthService.getToken() }).then((r) => {
+      if (!vigente || !r.ok || !r.permisos) return;
+      setPermisos(r.permisos as PermisosIntranet);
+      try { sessionStorage.setItem(CLAVE_PERMISOS, JSON.stringify({ email, permisos: r.permisos })); } catch { /* nada */ }
+    });
+    return () => { vigente = false; };
+  }, [email]);
+  return permisos;
+}
+
 export function cerrarSesionIntranet() {
   AuthService.logout('MANUAL'); // avisa a la intranet y borra las sesiones de los demás módulos
   StorageService.clearMemoryCacheForFreshLogin();

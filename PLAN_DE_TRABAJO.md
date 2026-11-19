@@ -67,7 +67,10 @@ Pasos:
 - [x] Paso 1: servidor central (pruebas): `horarios` y `permisos_intranet` (solo cambian con sus acciones),
       acciones `perfilIntranet`, `panelLeer`, `guardarPermisos`, `guardarHorarios` y `datosCentro` (firmada,
       para otros servidores). Pruebas en `pruebas/datos_centro.test.mts`.
-- [ ] Paso 2: Panel del centro en la intranet (profesorado y permisos, alumnado, horarios).
+- [x] Paso 2: Panel del centro en la intranet: profesorado y permisos (salidas, guardias, administradores del panel)
+      y horarios desde el PDF de Séneca. Alumnado: de momento sigue en Convivencia (enlace desde el panel).
+- [ ] Pegar el servidor central de pruebas en Apps Script y probar el panel (Miguel Ángel).
+- [ ] Más adelante: altas/bajas de profesorado y alumnado desde el panel.
 - [ ] Paso 3: salidas lee del servidor central.
 - [ ] Paso 4: guardias.
 - [ ] Al final: cambio de curso desde el panel.

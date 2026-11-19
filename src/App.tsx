@@ -3,7 +3,7 @@ import { Portada } from './nucleo/Portada';
 import { BarraIntranet } from './nucleo/BarraIntranet';
 import { MODULOS, type IdModulo } from './nucleo/modulos';
 import { useRuta } from './nucleo/ruta';
-import { useSesionIntranet, avisarCambioSesion } from './nucleo/accesoUnico';
+import { useSesionIntranet, usePermisosIntranet, avisarCambioSesion } from './nucleo/accesoUnico';
 import { EntornoBanner } from './modulos/convivencia/components/EntornoBanner';
 import { LoginView } from './modulos/convivencia/components/LoginView';
 
@@ -11,11 +11,13 @@ import { LoginView } from './modulos/convivencia/components/LoginView';
 const CARGADORES: Partial<Record<IdModulo, React.LazyExoticComponent<React.ComponentType>>> = {
   convivencia: lazy(() => import('./modulos/convivencia/App')),
   salidas: lazy(() => import('./modulos/salidas/App')),
+  panel: lazy(() => import('./modulos/panel/App')),
 };
 
 export default function App() {
   const ruta = useRuta();
   const usuario = useSesionIntranet();
+  const permisos = usePermisosIntranet(usuario);
 
   // Un solo inicio de sesión para toda la intranet (el de convivencia). Tras entrar se sigue
   // en la dirección pedida (#/salidas…) o en la portada.
@@ -28,9 +30,10 @@ export default function App() {
     );
   }
 
-  const modulo = MODULOS.find((m) => m.id === ruta && m.disponible);
+  const visibles = MODULOS.filter((m) => !m.soloPanel || permisos?.panel);
+  const modulo = visibles.find((m) => m.id === ruta && m.disponible);
   const Componente = modulo && CARGADORES[modulo.id];
-  if (!modulo || !Componente) return <Portada usuario={usuario} />;
+  if (!modulo || !Componente) return <Portada usuario={usuario} modulos={visibles} />;
   return (
     <>
       <BarraIntranet modulo={modulo.nombre} />

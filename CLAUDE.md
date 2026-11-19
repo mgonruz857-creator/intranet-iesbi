@@ -50,6 +50,12 @@ La intranet copia código de las apps existentes, pero **no escribe en ellas**:
   crea con la función de editor `crearSecretoIntranet` (convivencia) y se copia a mano en las propiedades del script
   de los demás servidores. Si un servidor aún no lo tiene, el módulo pide su propia contraseña como antes.
   Al cerrar la sesión de convivencia se cierran también las de los demás módulos.
+- **Servidor central**: el de convivencia guarda también los datos comunes de la intranet: `horarios` y
+  `permisos_intranet` (permiso de cada docente en cada módulo y quién administra el panel). Solo cambian con sus
+  acciones (`guardarPermisos`, `guardarHorarios`), nunca con `guardar`. Los demás servidores leen lo que necesitan con
+  `datosCentro` (petición firmada con `SECRETO_INTRANET`, sin teléfonos ni datos de familias). Ver `docs/convivencia.md`.
+- **Panel del centro** (`src/modulos/panel`): solo para administradores del panel (`perfilIntranet` → `permisos.panel`).
+  Profesorado y permisos, horarios (lector del PDF de Séneca en `src/nucleo/seneca`) y, más adelante, alumnado.
 - Módulos: `convivencia` (notas en `docs/convivencia.md`), `salidas` (notas en `docs/salidas.md`, servidor en
   `servidores/salidas/Code.gs`) y `guardias` (pendiente).
 
@@ -58,7 +64,7 @@ La intranet copia código de las apps existentes, pero **no escribe en ellas**:
 - `npm run build`: tipos y compilación.
 - `npm run test:convivencia`: servidor y app de convivencia con Drive simulado y datos ficticios.
 - `npm run test:salidas`: servidor de salidas (simulador) y lector de horarios de Séneca.
-- `npx tsx pruebas/acceso_unico.test.mts`: vales entre el servidor de convivencia y el de salidas.
+- `npm run test:acceso`: vales entre servidores (`acceso_unico`) y servidor central (`datos_centro`).
 - `npm test`: todas las anteriores.
 - Probar la intranet entera sin Google (servidores simulados): ver la cabecera de `pruebas/convivencia/servidor-local.mts`.
 - `npm run test:seguridad`: auditoría de convivencia. En PRUEBAS fallan SEC-11 y SEC-13, igual que en

@@ -1,12 +1,12 @@
 import React from 'react';
 import { ChevronRight, LogOut } from 'lucide-react';
-import { MODULOS } from './modulos';
+import type { Modulo } from './modulos';
 import { ES_ENTORNO_PRUEBAS } from '../config/entorno';
 import { cerrarSesionIntranet } from './accesoUnico';
 import type { Profesor } from '../modulos/convivencia/types/convivencia';
 import logo from '../modulos/convivencia/assets/images/logo_rectangular_iesbi.png';
 
-export const Portada: React.FC<{ usuario: Profesor }> = ({ usuario }) => (
+export const Portada: React.FC<{ usuario: Profesor; modulos: Modulo[] }> = ({ usuario, modulos }) => (
   <div className="min-h-screen bg-gradient-to-br from-sky-50/40 via-slate-50 to-blue-50/30 flex flex-col">
     {ES_ENTORNO_PRUEBAS && (
       <div className="w-full bg-amber-400 text-amber-950 text-center text-sm font-semibold py-1.5 px-4">
@@ -30,7 +30,7 @@ export const Portada: React.FC<{ usuario: Profesor }> = ({ usuario }) => (
         </div>
       </header>
       <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {MODULOS.map(({ id, nombre, descripcion, icono: Icono, disponible }) => {
+        {modulos.map(({ id, nombre, descripcion, icono: Icono, disponible }) => {
           const contenido = (
             <>
               <div className="flex items-center gap-3">

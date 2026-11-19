@@ -1,7 +1,7 @@
 // Lectura del horario de Séneca con una página FICTICIA que imita la posición de los textos del PDF.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buscarDocente, grupoAutomatico, interpretarPagina, type Texto } from '../../src/modulos/salidas/services/horarioSeneca.ts';
+import { buscarDocente, grupoAutomatico, interpretarPagina, type Texto } from '../../src/nucleo/seneca/horarioSeneca.ts';
 
 const COL = [68, 217, 366, 514, 663]; // inicio de cada columna (lunes … viernes)
 function pagina(): Texto[] {
