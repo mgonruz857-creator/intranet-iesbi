@@ -28,8 +28,7 @@ Igual que con convivencia: los cambios nuevos de salidas, mejor hacerlos ya en l
 - [x] Un solo inicio de sesión en la portada (el de convivencia); salidas entra sola con un vale firmado.
 - [x] Servidores: `valeIntranet` + `crearSecretoIntranet` (convivencia) y `entrarConVale` (salidas, v1.1.0).
 - [x] Pruebas: `pruebas/acceso_unico.test.mts` y prueba completa en el navegador con servidores simulados.
-- [ ] Pegar los dos servidores de PRUEBAS en Apps Script, crear la clave y copiarla (Miguel Ángel).
-- [ ] Probar en la web de pruebas.
+- [x] Servidores de PRUEBAS pegados y clave copiada (19/11/2026). Funciona: salidas entra sin contraseña.
 - Pendiente para producción: lo mismo con los servidores del centro, cuando se decida pasar la intranet.
 
 ## Fase 4 – Guardias
@@ -50,7 +49,9 @@ Duplicidades actuales:
 - **Roles y permisos**: cada módulo tiene los suyos (ROLE_CONVIVENCIA_ADMIN… / DIRECTIVO).
 - **Contraseñas**: con el acceso único sobran las propias de salidas (y no debería tenerlas guardias).
 
-Propuesta a decidir:
+Propuesta (19/11/2026, pendiente de aprobar): https://claude.ai/artifact/Cchzun6RSMWfnudF3VLqXr
+
+Resumen de la propuesta:
 - Una única fuente de "datos del centro" (profesorado, alumnado, grupos, horarios, curso escolar) con un panel
   para Jefatura/Dirección: altas, bajas, importación de Séneca (alumnado ODS y PDF de horarios) y roles por módulo.
 - Los módulos leen de ella en lugar de tener su copia. Opciones: que la sirva el servidor de convivencia
