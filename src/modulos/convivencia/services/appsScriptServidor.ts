@@ -835,6 +835,11 @@ function doPost(e) {
       case 'tutoriaVistos': return salida(tutoriaVistos(req));
       case 'marcarTutoriaVista': return salida(marcarTutoriaVista(req));
       case 'valeIntranet': return salida(valeIntranet(req));
+      case 'perfilIntranet': return salida(perfilIntranet(req));
+      case 'panelLeer': return salida(panelLeer(req));
+      case 'guardarPermisos': return salida(guardarPermisos(req));
+      case 'guardarHorarios': return salida(guardarHorarios(req));
+      case 'datosCentro': return salida(datosCentro(req));
       default: return salida({ ok: false, error: 'Acción desconocida.' });
     }
   } catch (err) {
@@ -1331,6 +1336,150 @@ function crearSecretoIntranet() {
   Logger.log('Clave del acceso único (cópiela en la propiedad SECRETO_INTRANET de los otros servidores): ' + clave);
 }
 
+// ------------------------------------------------------------------ Datos del centro (servidor central)
+
+// Este servidor guarda los datos comunes de la intranet: profesorado y alumnado (como siempre),
+// los horarios (leídos del PDF de Séneca en el Panel del centro) y los permisos de cada docente
+// en cada módulo. Los horarios y permisos solo se cambian con sus acciones (nunca con "guardar").
+var PERMISOS_MODULO = { salidas: ['DOCENTE', 'DIRECTIVO'], guardias: ['DOCENTE', 'JEFATURA'] };
+
+function permisosDe(db, p) {
+  var guardados = (db.permisos_intranet || {})[norm(p.email)] || {};
+  var r = {
+    // Al principio, los administradores de convivencia administran también el panel
+    panel: guardados.panel !== undefined ? guardados.panel === true : esAdmin(p),
+    convivencia: esAdmin(p) ? 'ADMIN' : 'DOCENTE'
+  };
+  for (var m in PERMISOS_MODULO) {
+    r[m] = PERMISOS_MODULO[m].indexOf(guardados[m]) >= 0 ? guardados[m] : PERMISOS_MODULO[m][0];
+  }
+  return r;
+}
+
+function sesionPanel(req, db) {
+  var s = sesion(req.token, db);
+  if (!permisosDe(db, s.prof).panel) fallo('PROHIBIDO', 'Solo los administradores del panel pueden hacer esto.');
+  return s;
+}
+
+/** Perfil y permisos del docente con sesión (la intranet decide qué apartados mostrar). */
+function perfilIntranet(req) {
+  var db = leerDb();
+  var s = sesion(req.token, db);
+  return { ok: true, usuario: perfilPublico(s.prof), permisos: permisosDe(db, s.prof) };
+}
+
+/** Panel: profesorado con sus permisos y horarios. */
+function panelLeer(req) {
+  var db = leerDb();
+  sesionPanel(req, db);
+  var profesores = (db.profesores || []).filter(function (p) { return p && p.email; }).map(function (p) {
+    var c = perfilPublico(p);
+    c.permisos = permisosDe(db, p);
+    return c;
+  });
+  return { ok: true, profesores: profesores, horarios: db.horarios || [] };
+}
+
+/** Panel: cambia los permisos de un docente. Siempre debe quedar al menos un administrador del panel. */
+function guardarPermisos(req) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var db = leerDb(true);
+    var s = sesionPanel(req, db);
+    var p = buscarProfesor(db, req.email);
+    if (!p) fallo('NO_REGISTRADO', 'Ese docente no está en el profesorado.');
+    var nuevos = req.permisos || {};
+    var actual = permisosDe(db, p);
+    var guardar = { panel: nuevos.panel !== undefined ? nuevos.panel === true : actual.panel };
+    for (var m in PERMISOS_MODULO) {
+      var v = nuevos[m] !== undefined ? nuevos[m] : actual[m];
+      if (PERMISOS_MODULO[m].indexOf(v) < 0) fallo('PERMISO', 'Permiso no válido para ' + m + '.');
+      guardar[m] = v;
+    }
+    db.permisos_intranet = db.permisos_intranet || {};
+    db.permisos_intranet[norm(p.email)] = guardar;
+    var quedan = (db.profesores || []).filter(function (x) {
+      return x && x.email && x.estado !== 'INACTIVO' && permisosDe(db, x).panel;
+    }).length;
+    if (!quedan) fallo('ULTIMO_ADMIN', 'Debe quedar al menos un administrador del panel.');
+    registrarAuditoria(db, s.email, 'Docente/' + norm(p.email), 'Permisos de la intranet: ' + JSON.stringify(guardar));
+    escribirDb(db);
+    return { ok: true, permisos: permisosDe(db, p) };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function minutosHora(v) {
+  var m = /^(\d{1,2}):(\d{2})$/.exec(String(v || '').trim());
+  if (!m) return null;
+  var h = parseInt(m[1], 10), mi = parseInt(m[2], 10);
+  return h < 24 && mi < 60 ? h * 60 + mi : null;
+}
+
+function textoHora(min) {
+  var h = Math.floor(min / 60), m = min % 60;
+  return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
+}
+
+/**
+ * Panel: guarda el horario leído del PDF de Séneca. filas = [[correo, día 1-5, 'HH:mm', 'HH:mm', grupo]].
+ * Se sustituye el horario de los docentes incluidos (en filas o en "docentes"); el resto se conserva.
+ */
+function guardarHorarios(req) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var db = leerDb(true);
+    var s = sesionPanel(req, db);
+    var docentes = {};
+    var nuevas = [];
+    (Array.isArray(req.filas) ? req.filas : []).slice(0, 20000).forEach(function (f) {
+      if (!Array.isArray(f) || f.length < 5) return;
+      var email = norm(f[0]), dia = parseInt(f[1], 10), desde = minutosHora(f[2]), hasta = minutosHora(f[3]);
+      var grupo = String(f[4] || '').trim();
+      if (!buscarProfesor(db, email) || !(dia >= 1 && dia <= 5) || desde === null || hasta === null || hasta <= desde
+          || !/^[0-9A-Z_]+$/.test(grupo)) return;
+      docentes[email] = true;
+      nuevas.push([email, dia, textoHora(desde), textoHora(hasta), grupo]);
+    });
+    (Array.isArray(req.docentes) ? req.docentes : []).forEach(function (e) { if (buscarProfesor(db, e)) docentes[norm(e)] = true; });
+    var conservadas = (db.horarios || []).filter(function (f) { return f && !docentes[norm(f[0])]; });
+    db.horarios = conservadas.concat(nuevas);
+    registrarAuditoria(db, s.email, 'Horarios', 'Horario guardado: ' + nuevas.length + ' horas de ' + Object.keys(docentes).length + ' docentes.');
+    escribirDb(db);
+    return { ok: true, guardados: nuevas.length, docentes: Object.keys(docentes).length, total: db.horarios.length };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Para los otros servidores de la intranet (salidas, guardias): los datos del centro que necesitan,
+ * sin teléfonos ni datos de familias. La petición va firmada con SECRETO_INTRANET y caduca en 2 minutos.
+ */
+function datosCentro(req) {
+  var secreto = propiedades().getProperty('SECRETO_INTRANET');
+  if (!secreto) fallo('SIN_ACCESO_UNICO', 'El acceso único de la intranet no está configurado en el servidor central.');
+  var pet = req.peticion || {};
+  var datos = String(pet.datos || '');
+  var firma = Utilities.base64Encode(Utilities.computeHmacSha256Signature(datos, secreto));
+  if (!datos || firma !== pet.firma) fallo('NO_AUTH', 'Petición no válida.');
+  var d = JSON.parse(datos);
+  if (MODULOS_INTRANET.indexOf(d.modulo) < 0 || !(d.exp > new Date().getTime())) fallo('NO_AUTH', 'Petición caducada o no válida.');
+  var db = leerDb();
+  var profesores = (db.profesores || []).filter(function (p) { return p && p.email && p.estado !== 'INACTIVO'; })
+    .map(function (p) {
+      return { email: norm(p.email), nombre: p.nombre || '', apellidos: p.apellidos || '',
+               tutor_de_grupo: p.tutor_de_grupo || '', permiso: permisosDe(db, p)[d.modulo] };
+    });
+  var alumnos = (db.alumnos || []).filter(function (a) { return a && a.id_alumno && a.estado !== 'BAJA'; })
+    .map(function (a) { return { id_alumno: a.id_alumno, nombre: a.nombre || '', apellidos: a.apellidos || '', grupo: a.grupo || '' }; });
+  return { ok: true, profesores: profesores, alumnos: alumnos, horarios: db.horarios || [] };
+}
+
 // ------------------------------------------------------------------ Acciones
 
 function estadoCuenta(req) {
@@ -1573,7 +1722,7 @@ function guardar(req) {
 /** Jefatura/Convivencia: lo que envía es la referencia, sin perder lo que otros hayan guardado. */
 // Datos que solo gestiona el servidor: nunca se toman de lo que envía la app
 var CLAVES_SERVIDOR = ['credenciales_profesores', 'credenciales_v1_alternativas', 'reset_credenciales_emails',
-  'migracion_v2', 'saldos_antes_v2'];
+  'migracion_v2', 'saldos_antes_v2', 'horarios', 'permisos_intranet'];
 
 /**
  * Lista de lo que la app dice haber cambiado (entrada.cambios). Si existe, de lo demás se conserva

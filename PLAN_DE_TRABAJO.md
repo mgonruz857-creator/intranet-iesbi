@@ -51,6 +51,27 @@ Duplicidades actuales:
 
 Propuesta (19/11/2026, pendiente de aprobar): https://claude.ai/artifact/Cchzun6RSMWfnudF3VLqXr
 
+Decisiones de Miguel Ángel (19/11/2026):
+- Los datos viven en el servidor de convivencia, que pasa a llamarse **servidor central de la intranet**
+  (en pruebas, el proyecto `API_SIGC_PRUEBAS` se puede renombrar `API_Intranet_PRUEBAS`; producción no se toca).
+- Gestionan el panel los administradores de convivencia y, después, Jefatura, Dirección y Miguel Ángel.
+  Los administradores del panel se pueden añadir y quitar desde el propio panel (siempre queda al menos uno).
+- El lector del PDF de horarios de Séneca pasa al panel.
+- Bajas: se conserva el histórico y se ocultan de las listas.
+- Salidas y guardias nunca reciben teléfonos ni datos de familias.
+- Cambio de curso: **a la vez desde el panel**. Los datos del centro (alumnado, grupos, horarios) cambian una sola vez
+  y cada módulo archiva su histórico en ese momento; convivencia mantiene visibles los expedientes abiertos.
+  (Se construye al final.)
+
+Pasos:
+- [x] Paso 1: servidor central (pruebas): `horarios` y `permisos_intranet` (solo cambian con sus acciones),
+      acciones `perfilIntranet`, `panelLeer`, `guardarPermisos`, `guardarHorarios` y `datosCentro` (firmada,
+      para otros servidores). Pruebas en `pruebas/datos_centro.test.mts`.
+- [ ] Paso 2: Panel del centro en la intranet (profesorado y permisos, alumnado, horarios).
+- [ ] Paso 3: salidas lee del servidor central.
+- [ ] Paso 4: guardias.
+- [ ] Al final: cambio de curso desde el panel.
+
 Resumen de la propuesta:
 - Una única fuente de "datos del centro" (profesorado, alumnado, grupos, horarios, curso escolar) con un panel
   para Jefatura/Dirección: altas, bajas, importación de Séneca (alumnado ODS y PDF de horarios) y roles por módulo.
