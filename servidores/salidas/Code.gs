@@ -18,13 +18,19 @@
  * Los identificadores de alumno y los códigos de grupo (1ESO_A, 2BACH_C, 1_FRIO…) son los mismos
  * que usa la app de convivencia (SIGC-BI), para poder integrarlas más adelante.
  *
- * Funciones para ejecutar desde el editor: configurarHoja, limpiarCache, cerrarSalidasAbiertas,
- * activarModoPruebas y desactivarModoPruebas (solo en la hoja de PRUEBAS).
+ * Servidor central de la intranet (desde la versión 1.2.0): si la propiedad del script URL_SERVIDOR_CENTRAL
+ * tiene la dirección /exec del servidor de convivencia, el profesorado, el alumnado y el horario se leen de
+ * allí (acción datosCentro, firmada con SECRETO_INTRANET) y las pestañas Profesorado, Alumnado y Horario
+ * dejan de usarse. Los permisos (DOCENTE / DIRECTIVO) y los horarios se gestionan en el Panel del centro.
+ * Sin esa propiedad, todo funciona con las pestañas como antes.
+ *
+ * Funciones para ejecutar desde el editor: configurarHoja, limpiarCache, probarServidorCentral,
+ * cerrarSalidasAbiertas, activarModoPruebas y desactivarModoPruebas (solo en la hoja de PRUEBAS).
  */
 
 // ───────────────────────── Configuración ─────────────────────────
 
-var VERSION = '1.1.0';
+var VERSION = '1.2.0';
 var ZONA = 'Europe/Madrid';
 var DOMINIO = '@g.educaand.es';
 var CUPO_GLOBAL = 5;
@@ -35,6 +41,7 @@ var MIN_JUSTIFICACION_EXCEPCIONAL = 10; // 2ª salida en el mismo bloque
 var MINUTOS_PARA_ANULAR = 2;        // el docente puede anular su propia salida por error
 var ESPERA_CERROJO_MS = 10000;
 var CACHE_TTL = 21600;              // 6 horas
+var CACHE_CENTRAL_SEG = 600;        // datos del servidor central: se vuelven a pedir cada 10 minutos
 var FILAS_POR_LECTURA = 1500;
 var DURACION_SESION_SEG = 21600;    // 6 horas (máximo de CacheService), se renueva con el uso
 var MAX_INTENTOS = 5;
@@ -96,7 +103,9 @@ var MENSAJES = {
   'ERROR_OCUPADO': 'El sistema está atendiendo otras peticiones. Inténtelo de nuevo en unos segundos.',
   'ERROR_ACCION': 'Acción desconocida.',
   'SIN_ACCESO_UNICO': 'El acceso único de la intranet no está configurado en el servidor de salidas.',
-  'VALE_NO_VALIDO': 'No se ha podido comprobar su sesión de la intranet. Vuelva a iniciar sesión.'
+  'VALE_NO_VALIDO': 'No se ha podido comprobar su sesión de la intranet. Vuelva a iniciar sesión.',
+  'ERROR_CENTRAL': 'No se han podido leer los datos del centro (servidor central de la intranet). Inténtelo de nuevo en unos minutos.',
+  'HORARIO_EN_PANEL': 'Los horarios se gestionan ahora en el Panel del centro de la intranet.'
 };
 
 // ───────────────────────── Entrada web ─────────────────────────
@@ -207,7 +216,7 @@ function login_(req) {
 /**
  * Acceso único de la intranet: el servidor de convivencia, que identifica al profesorado, firma un vale
  * de un solo uso con la clave SECRETO_INTRANET (la misma en las propiedades de ambos scripts).
- * Si la firma es buena, no ha caducado y el docente está en la pestaña Profesorado, se abre sesión aquí.
+ * Si la firma es buena, no ha caducado y el docente está en el profesorado (pestaña o servidor central), se abre sesión aquí.
  */
 function entrarConVale_(req) {
   var secreto = PropertiesService.getScriptProperties().getProperty('SECRETO_INTRANET');
@@ -240,6 +249,7 @@ function cambiarClave_(req) {
 /** Equipo Directivo: el docente fijará una contraseña nueva en su próximo acceso. */
 function restablecerClave_(usuario, req) {
   if (!usuario.directivo) return fallo_('ERROR_SIN_PERMISO');
+  if (modoCentral_()) return fallo_('ERROR_PETICION', null, 'Con el acceso único de la intranet ya no hay contraseña propia de salidas.');
   var email = norm_(req.email);
   if (!profesorado_()[email]) return fallo_('401_UNAUTHORIZED');
   PropertiesService.getScriptProperties().deleteProperty('CLAVE_' + email);
@@ -258,7 +268,7 @@ function listaProfesorado_(usuario) {
       tramos: (horario[p.email] || []).length };
   });
   lista.sort(function (a, b) { return a.nombre.localeCompare(b.nombre, 'es'); });
-  return { ok: true, profesorado: lista, grupos: gruposDe_(alumnado_()) };
+  return { ok: true, profesorado: lista, grupos: gruposDe_(alumnado_()), central: modoCentral_() };
 }
 
 /**
@@ -268,6 +278,7 @@ function listaProfesorado_(usuario) {
  */
 function guardarHorario_(usuario, req) {
   if (!usuario.directivo) return fallo_('ERROR_SIN_PERMISO');
+  if (modoCentral_()) return fallo_('HORARIO_EN_PANEL');
   var profes = profesorado_();
   var grupos = gruposDe_(alumnado_());
   var nuevas = [];
@@ -610,6 +621,7 @@ function escribirCierre_(numeroFila, fin, estado, quien) {
 }
 
 function profesorado_() {
+  if (modoCentral_()) return datosCentral_().profesorado;
   return conCache_('GBCS_PROFESORADO', function () {
     var datos = valoresDe_(HOJA_PROFESORADO, 5);
     var mapa = {};
@@ -626,6 +638,7 @@ function profesorado_() {
 }
 
 function alumnado_() {
+  if (modoCentral_()) return datosCentral_().alumnado;
   return conCache_('GBCS_ALUMNADO', function () {
     var datos = valoresDe_(HOJA_ALUMNADO, 5);
     var mapa = {};
@@ -653,6 +666,7 @@ function grupoSegunHorario_(email, ahora) {
 
 /** { email: [[dia, desdeMin, hastaMin, grupo], …] } */
 function horario_() {
+  if (modoCentral_()) return datosCentral_().horario;
   return conCache_('GBCS_HORARIO', function () {
     var libro = SpreadsheetApp.getActive();
     if (!libro.getSheetByName(HOJA_HORARIO)) return {};
@@ -708,7 +722,7 @@ function ordenGrupos_(a, b) {
 // ───────────────────────── Caché ─────────────────────────
 
 /** Guarda en CacheService en trozos de 90 KB (el límite por clave es 100 KB). */
-function conCache_(clave, calcular) {
+function conCache_(clave, calcular, segundos) {
   var cache = CacheService.getScriptCache();
   var n = cache.get(clave + '_N');
   if (n) {
@@ -725,13 +739,83 @@ function conCache_(clave, calcular) {
   var total = Math.ceil(texto.length / 90000) || 1;
   for (var j = 0; j < total; j++) pares[clave + '_' + j] = texto.slice(j * 90000, (j + 1) * 90000);
   pares[clave + '_N'] = String(total);
-  cache.putAll(pares, CACHE_TTL);
+  cache.putAll(pares, segundos || CACHE_TTL);
   return valor;
 }
 
 /** Ejecutar desde el editor después de cambiar Profesorado o Alumnado a mano (también se hace solo al editar). */
 function limpiarCache() {
-  CacheService.getScriptCache().removeAll(['GBCS_PROFESORADO_N', 'GBCS_ALUMNADO_N', 'GBCS_HORARIO_N']);
+  CacheService.getScriptCache().removeAll(['GBCS_PROFESORADO_N', 'GBCS_ALUMNADO_N', 'GBCS_HORARIO_N', 'GBCS_CENTRAL_N']);
+}
+
+// ───────────────────────── Servidor central de la intranet ─────────────────────────
+
+function urlCentral_() {
+  return String(PropertiesService.getScriptProperties().getProperty('URL_SERVIDOR_CENTRAL') || '').trim();
+}
+
+function modoCentral_() { return !!urlCentral_(); }
+
+/**
+ * Pide al servidor central (convivencia) el profesorado activo con su permiso en salidas, el alumnado
+ * que no está de baja y los horarios. Nunca llegan teléfonos ni datos de familias.
+ * Se guarda 10 minutos en caché. Si falla, se avisa (no se vuelve en silencio a las pestañas).
+ */
+function datosCentral_() {
+  return conCache_('GBCS_CENTRAL', function () {
+    var secreto = PropertiesService.getScriptProperties().getProperty('SECRETO_INTRANET');
+    if (!secreto) error_('ERROR_CENTRAL', 'Falta la propiedad SECRETO_INTRANET en el servidor de salidas.');
+    var datos = JSON.stringify({ modulo: 'salidas', exp: new Date().getTime() + 120000, n: Utilities.getUuid() });
+    var firma = Utilities.base64Encode(Utilities.computeHmacSha256Signature(datos, secreto));
+    var r;
+    try {
+      var resp = UrlFetchApp.fetch(urlCentral_(), {
+        method: 'post', contentType: 'text/plain;charset=utf-8', muteHttpExceptions: true, followRedirects: true,
+        payload: JSON.stringify({ accion: 'datosCentro', peticion: { datos: datos, firma: firma } })
+      });
+      r = JSON.parse(resp.getContentText());
+    } catch (err) {
+      console.error(err && err.stack || err);
+      error_('ERROR_CENTRAL');
+    }
+    if (!r || !r.ok) error_('ERROR_CENTRAL', MENSAJES.ERROR_CENTRAL + ' Respuesta: ' + ((r && (r.error || r.mensaje)) || 'vacía'));
+    return convertirCentral_(r);
+  }, CACHE_CENTRAL_SEG);
+}
+
+/** Pasa la respuesta de datosCentro al formato que usa este servidor. */
+function convertirCentral_(r) {
+  var profesorado = {}, alumnado = {}, horario = {};
+  (r.profesores || []).forEach(function (p) {
+    var email = norm_(p.email);
+    if (!email) return;
+    var nombre = [p.apellidos, p.nombre].filter(function (x) { return x; }).join(', ');
+    profesorado[email] = { id: email, email: email, nombre: nombre || email, aula: String(p.tutor_de_grupo || '').trim(),
+      directivo: p.permiso === 'DIRECTIVO' };
+  });
+  (r.alumnos || []).forEach(function (a) {
+    var id = String(a.id_alumno || '').trim();
+    if (!id) return;
+    alumnado[id] = { id: id, nombre: String(a.nombre || ''), apellidos: String(a.apellidos || ''), aula: String(a.grupo || '').trim() };
+  });
+  (r.horarios || []).forEach(function (f) {
+    var e = norm_(f[0]), dia = numeroDia_(f[1]), desde = minutosTexto_(f[2]), hasta = minutosTexto_(f[3]);
+    var grupo = String(f[4] || '').trim();
+    if (!e || !dia || desde === null || hasta === null || !grupo) return;
+    (horario[e] = horario[e] || []).push([dia, desde, hasta, grupo]);
+  });
+  return { profesorado: profesorado, alumnado: alumnado, horario: horario };
+}
+
+/** Ejecutar desde el editor: comprueba la conexión con el servidor central (y pide el permiso de Google la primera vez). */
+function probarServidorCentral() {
+  if (!modoCentral_()) { Logger.log('Falta la propiedad URL_SERVIDOR_CENTRAL: se usan las pestañas de la hoja.'); return; }
+  limpiarCache();
+  var d = datosCentral_();
+  var tramos = 0;
+  Object.keys(d.horario).forEach(function (e) { tramos += d.horario[e].length; });
+  Logger.log('Conexión correcta. Profesorado: ' + Object.keys(d.profesorado).length + ' · Alumnado: ' +
+    Object.keys(d.alumnado).length + ' · Tramos de horario: ' + tramos);
 }
 
 /** Disparador simple: al editar Profesorado o Alumnado se descarta la caché. */

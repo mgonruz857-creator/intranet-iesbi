@@ -69,9 +69,13 @@ Pasos:
       para otros servidores). Pruebas en `pruebas/datos_centro.test.mts`.
 - [x] Paso 2: Panel del centro en la intranet: profesorado y permisos (salidas, guardias, administradores del panel)
       y horarios desde el PDF de Séneca. Alumnado: de momento sigue en Convivencia (enlace desde el panel).
-- [ ] Pegar el servidor central de pruebas en Apps Script y probar el panel (Miguel Ángel).
+- [x] Pegar el servidor central de pruebas en Apps Script y probar el panel (Miguel Ángel, 19/11).
 - [ ] Más adelante: altas/bajas de profesorado y alumnado desde el panel.
-- [ ] Paso 3: salidas lee del servidor central.
+- [x] Paso 3: salidas lee del servidor central (servidor de salidas 1.2.0). Con la propiedad `URL_SERVIDOR_CENTRAL`
+      toma profesorado, alumnado, horarios y permiso DIRECTIVO de `datosCentro` (caché de 10 minutos); sus pestañas
+      Profesorado, Alumnado y Horario dejan de usarse. Pruebas en `pruebas/salidas_central.test.mts`.
+- [ ] Pegar el servidor de salidas 1.2.0 en PRUEBAS, añadir `URL_SERVIDOR_CENTRAL` y ejecutar `probarServidorCentral`
+      (Miguel Ángel).
 - [ ] Paso 4: guardias.
 - [ ] Al final: cambio de curso desde el panel.
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FileUp, KeyRound, Save } from 'lucide-react';
+import { FileUp, KeyRound, Save, Settings2 } from 'lucide-react';
 import { llamarApi } from '../services/api';
 import { buscarDocente, grupoAutomatico, interpretarPagina, type PaginaHorario } from '../../../nucleo/seneca/horarioSeneca';
 import { etiquetaGrupo } from '../tipos';
@@ -17,10 +17,13 @@ export default function Profesorado({ avisar }: Props) {
   const [docentes, setDocentes] = useState<Docente[] | null>(null);
   const [grupos, setGrupos] = useState<string[]>([]);
   const [filtro, setFiltro] = useState('');
+  // central: el servidor de salidas toma profesorado, alumnado y horarios del Panel del centro
+  const [central, setCentral] = useState(false);
 
   const cargar = useCallback(async () => {
-    const r = await llamarApi<{ profesorado: Docente[]; grupos: string[] }>('profesorado');
+    const r = await llamarApi<{ profesorado: Docente[]; grupos: string[]; central?: boolean }>('profesorado');
     if (!r.ok) { avisar(r.mensaje || 'No se pudo cargar el profesorado.', true); return; }
+    setCentral(!!r.central);
     setDocentes(r.profesorado);
     setGrupos(r.grupos);
   }, [avisar]);
@@ -39,7 +42,19 @@ export default function Profesorado({ avisar }: Props) {
 
   return (
     <div className="space-y-4">
-      <ImportarHorario docentes={docentes || []} grupos={grupos} avisar={avisar} alGuardar={cargar} />
+      {central ? (
+        <section className="bg-sky-50 border border-sky-200 rounded-2xl p-4 text-sm text-sky-900 flex flex-wrap items-center gap-3">
+          <p className="mr-auto">
+            El profesorado, el alumnado, los horarios y quién es del Equipo Directivo en Salidas se gestionan en el
+            <b> Panel del centro</b> de la intranet. Los cambios llegan aquí en unos 10 minutos.
+          </p>
+          <a href="#/panel" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sky-700 text-white text-xs font-semibold hover:bg-sky-800">
+            <Settings2 className="w-4 h-4" /> Ir al Panel del centro
+          </a>
+        </section>
+      ) : (
+        <ImportarHorario docentes={docentes || []} grupos={grupos} avisar={avisar} alGuardar={cargar} />
+      )}
 
       <section className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3">
         <div className="flex flex-wrap gap-2 items-center">
@@ -47,20 +62,22 @@ export default function Profesorado({ avisar }: Props) {
           <input type="search" value={filtro} onChange={(e) => setFiltro(e.target.value)} placeholder="Buscar…"
             className="rounded-xl border border-slate-200 px-3 py-2 text-sm" aria-label="Buscar docente" />
         </div>
-        <p className="text-xs text-slate-500">
-          Para dar de alta o de baja a un docente, edite la pestaña <b>Profesorado</b> de la hoja de cálculo.
-        </p>
+        {!central && (
+          <p className="text-xs text-slate-500">
+            Para dar de alta o de baja a un docente, edite la pestaña <b>Profesorado</b> de la hoja de cálculo.
+          </p>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-slate-500 border-b border-slate-200">
                 <th className="p-2 font-semibold">Docente</th><th className="p-2 font-semibold">Aula</th>
-                <th className="p-2 font-semibold">Horario</th><th className="p-2 font-semibold">Acceso</th><th className="p-2"></th>
+                <th className="p-2 font-semibold">Horario</th>{!central && <><th className="p-2 font-semibold">Acceso</th><th className="p-2"></th></>}
               </tr>
             </thead>
             <tbody>
               {docentes === null ? (
-                <tr><td colSpan={5} className="p-4 text-slate-500">Cargando…</td></tr>
+                <tr><td colSpan={central ? 3 : 5} className="p-4 text-slate-500">Cargando…</td></tr>
               ) : lista.map((d) => (
                 <tr key={d.email} className="border-b border-slate-100">
                   <td className="p-2">
@@ -69,6 +86,7 @@ export default function Profesorado({ avisar }: Props) {
                   </td>
                   <td className="p-2 whitespace-nowrap">{d.aula ? etiquetaGrupo(d.aula) : '—'}</td>
                   <td className="p-2 whitespace-nowrap text-xs">{d.tramos ? d.tramos + (d.tramos === 1 ? ' hora' : ' horas') : <span className="text-amber-700">Sin horario</span>}</td>
+                  {!central && <>
                   <td className="p-2 whitespace-nowrap text-xs">{d.tieneClave ? 'Activada' : <span className="text-slate-500">Pendiente del primer acceso</span>}</td>
                   <td className="p-2 text-right">
                     {d.tieneClave && (
@@ -78,6 +96,7 @@ export default function Profesorado({ avisar }: Props) {
                       </button>
                     )}
                   </td>
+                  </>}
                 </tr>
               ))}
             </tbody>

@@ -6,9 +6,13 @@
  *   SIM_DESDE="2026-10-23 09:40" node pruebas/servidor-local.mjs   (el reloj empieza ahí)
  *   VITE_URL_API_SALIDAS=http://localhost:8787 npm run dev
  *
+ * Con URL_SERVIDOR_CENTRAL=http://localhost:8788 (y la misma SECRETO_INTRANET) el profesorado, el alumnado y
+ * los horarios se leen del servidor local de convivencia, como hará el servidor real con su propiedad.
+ *
  * Cuentas: directiva@g.educaand.es y docente.uno@g.educaand.es (primer acceso: cualquier contraseña válida).
  */
 import http from 'node:http';
+import { execFileSync } from 'node:child_process';
 import { crearEntorno, madrid } from './simulador.mjs';
 
 const GRUPOS = ['1ESO_A', '1ESO_B', '2ESO_A', '3ESO_C', '4ESO_D', '1BACH_A', '2BACH_B', '1_INF', '2_INF'];
@@ -35,7 +39,12 @@ const e = crearEntorno({
     'time_block', 'is_preferred_slot', 'justification', 'is_override', 'override_justification', 'status', 'closed_by']],
   Horario: [['email', 'dia', 'desde', 'hasta', 'classroom_id'],
     ['docente.uno@g.educaand.es', 'V', '09:30', '10:30', '3ESO_C']],
+}, {
+  // UrlFetchApp es síncrono: se imita con curl contra el servidor local de convivencia
+  urlFetch: (url, params) => ({ codigo: 200,
+    texto: execFileSync('curl', ['-s', '-X', 'POST', '--data-binary', '@-', url], { input: params.payload }).toString() }),
 });
+if (process.env.URL_SERVIDOR_CENTRAL) e.props.URL_SERVIDOR_CENTRAL = process.env.URL_SERVIDOR_CENTRAL;
 
 // Acceso único: la misma clave que el servidor local de convivencia (pruebas/convivencia/servidor-local.mts)
 if (process.env.SECRETO_INTRANET) e.props.SECRETO_INTRANET = process.env.SECRETO_INTRANET;

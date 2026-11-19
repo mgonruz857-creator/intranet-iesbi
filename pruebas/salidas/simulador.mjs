@@ -67,7 +67,11 @@ function formatear(fecha, zona, patron) {
   })[t]);
 }
 
-export function crearEntorno(pestanas) {
+/**
+ * opciones.urlFetch(url, params) → { codigo, texto }: lo que responde la red a UrlFetchApp.fetch
+ * (por ejemplo, el servidor central simulado). Sin ella, UrlFetchApp.fetch falla como sin conexión.
+ */
+export function crearEntorno(pestanas, opciones = {}) {
   const hojas = {};
   for (const [nombre, datos] of Object.entries(pestanas)) hojas[nombre] = new Hoja(nombre, datos);
   let cache = {};
@@ -80,6 +84,7 @@ export function crearEntorno(pestanas) {
     getSpreadsheetTimeZone: () => 'Europe/Madrid',
   };
   let cerrojoOcupado = false;
+  const peticionesRed = [];
   const ctx = {
     console: { error() {}, log: console.log },
     Logger: { log() {} },
@@ -102,6 +107,12 @@ export function crearEntorno(pestanas) {
       releaseLock() { cerrojoOcupado = false; },
     }) },
     ContentService: { MimeType: { JSON: 'json' }, createTextOutput: (t) => ({ texto: t, setMimeType() { return this; } }) },
+    UrlFetchApp: { fetch: (url, params) => {
+      peticionesRed.push({ url, params });
+      if (!opciones.urlFetch) throw new Error('Sin conexión (simulador)');
+      const r = opciones.urlFetch(url, params);
+      return { getResponseCode: () => r.codigo || 200, getContentText: () => r.texto };
+    } },
     Utilities: {
       formatDate: formatear,
       getUuid: () => crypto.randomUUID(),
@@ -113,7 +124,7 @@ export function crearEntorno(pestanas) {
   vm.createContext(ctx);
   vm.runInContext(fs.readFileSync(new URL('../../servidores/salidas/Code.gs', import.meta.url), 'utf8'), ctx, { filename: 'Code.gs' });
   return {
-    ctx, hojas, props,
+    ctx, hojas, props, peticionesRed,
     vaciarCache: () => { cache = {}; },
     ocuparCerrojo: (v) => { cerrojoOcupado = v; },
     /** Petición como la que manda la app, a una hora concreta. */

@@ -12,7 +12,7 @@
     "test:seguridad": "tsx pruebas/convivencia/seguridad.ts",
     "test:salidas": "node --experimental-strip-types --no-warnings --test pruebas/salidas/servidor.test.mjs pruebas/salidas/horario.test.mts",
     "test": "npm run test:convivencia && npm run test:salidas && npm run test:acceso",
-    "test:acceso": "tsx pruebas/acceso_unico.test.mts && tsx pruebas/datos_centro.test.mts"
+    "test:acceso": "tsx pruebas/acceso_unico.test.mts && tsx pruebas/datos_centro.test.mts && tsx pruebas/salidas_central.test.mts"
   },
   "dependencies": {
     "html2canvas": "^1.4.1",

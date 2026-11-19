@@ -24,6 +24,21 @@ en las propiedades del script, sesión de 6 h) y mismos códigos de grupo e iden
   aquí cierra la sesión de toda la intranet.
 - Sin la propiedad (o con el servidor antiguo), se pide la contraseña propia del módulo, como antes.
 
+## Datos del centro (servidor central, desde la versión 1.2.0)
+
+- Si el script tiene la propiedad `URL_SERVIDOR_CENTRAL` (dirección /exec del servidor de convivencia), el
+  profesorado, el alumnado y los horarios se piden a su acción `datosCentro` (firmada con `SECRETO_INTRANET`) y se
+  guardan 10 minutos en caché. Las pestañas Profesorado, Alumnado y Horario dejan de usarse; solo queda
+  Historico_Salidas.
+- Correspondencias: docente → nombre "Apellidos, Nombre", aula = su tutoría, `directivo` = permiso DIRECTIVO en el
+  panel. Alumno → `id_alumno`, grupo. Nunca llegan teléfonos ni datos de familias.
+- En ese modo el horario y las contraseñas propias no se gestionan aquí (`HORARIO_EN_PANEL`); la pantalla de
+  Profesorado enlaza al Panel del centro. Si el servidor central no responde, error `ERROR_CENTRAL` (no se vuelve
+  en silencio a las pestañas).
+- `probarServidorCentral` (desde el editor) comprueba la conexión y pide el permiso de Google para conectarse a
+  servicios externos la primera vez.
+- Local: `URL_SERVIDOR_CENTRAL=http://localhost:8788` en `pruebas/salidas/servidor-local.mjs`.
+
 ## Reglas (PRD)
 
 - Lunes a viernes. Bloque 1 08:30–11:30 (preferente A 09:30–10:30), recreo 11:30–12:00 sin salidas,
