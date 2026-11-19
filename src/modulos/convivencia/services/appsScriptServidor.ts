@@ -1440,10 +1440,12 @@ function guardarHorarios(req) {
       if (!Array.isArray(f) || f.length < 5) return;
       var email = norm(f[0]), dia = parseInt(f[1], 10), desde = minutosHora(f[2]), hasta = minutosHora(f[3]);
       var grupo = String(f[4] || '').trim();
+      // Columna 6 (opcional): aula. Las horas de guardia llevan grupo GUARDIA o GUARDIA_RECREO.
+      var aula = String(f[5] || '').replace(/[^0-9A-Za-zÁÉÍÓÚÜÑáéíóúüñºª _.\-\/]/g, '').trim().slice(0, 30);
       if (!buscarProfesor(db, email) || !(dia >= 1 && dia <= 5) || desde === null || hasta === null || hasta <= desde
           || !/^[0-9A-Z_]+$/.test(grupo)) return;
       docentes[email] = true;
-      nuevas.push([email, dia, textoHora(desde), textoHora(hasta), grupo]);
+      nuevas.push([email, dia, textoHora(desde), textoHora(hasta), grupo, aula]);
     });
     (Array.isArray(req.docentes) ? req.docentes : []).forEach(function (e) { if (buscarProfesor(db, e)) docentes[norm(e)] = true; });
     var conservadas = (db.horarios || []).filter(function (f) { return f && !docentes[norm(f[0])]; });
@@ -1477,7 +1479,10 @@ function datosCentro(req) {
     });
   var alumnos = (db.alumnos || []).filter(function (a) { return a && a.id_alumno && a.estado !== 'BAJA'; })
     .map(function (a) { return { id_alumno: a.id_alumno, nombre: a.nombre || '', apellidos: a.apellidos || '', grupo: a.grupo || '' }; });
-  return { ok: true, profesores: profesores, alumnos: alumnos, horarios: db.horarios || [] };
+  var horarios = db.horarios || [];
+  // Salidas no necesita las horas de guardia (no son clases con grupo)
+  if (d.modulo === 'salidas') horarios = horarios.filter(function (f) { return f && !/^GUARDIA/.test(String(f[4] || '')); });
+  return { ok: true, profesores: profesores, alumnos: alumnos, horarios: horarios };
 }
 
 // ------------------------------------------------------------------ Acciones

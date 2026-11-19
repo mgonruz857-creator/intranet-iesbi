@@ -70,6 +70,7 @@ function formatear(fecha, zona, patron) {
 /**
  * opciones.urlFetch(url, params) → { codigo, texto }: lo que responde la red a UrlFetchApp.fetch
  * (por ejemplo, el servidor central simulado). Sin ella, UrlFetchApp.fetch falla como sin conexión.
+ * opciones.codigo: servidor que se carga (por defecto servidores/salidas/Code.gs; p. ej. 'guardias').
  */
 export function crearEntorno(pestanas, opciones = {}) {
   const hojas = {};
@@ -80,11 +81,22 @@ export function crearEntorno(pestanas, opciones = {}) {
     getSheetByName: (n) => hojas[n] || null,
     insertSheet: (n) => (hojas[n] = new Hoja(n)),
     getUrl: () => 'https://docs.google.com/spreadsheets/d/ficticia',
+    getId: () => 'hoja-ficticia',
     setSpreadsheetTimeZone() {},
     getSpreadsheetTimeZone: () => 'Europe/Madrid',
   };
   let cerrojoOcupado = false;
   const peticionesRed = [];
+  // Drive en memoria (solo lo que usan los servidores: carpetas y archivos)
+  const archivos = {};
+  let contador = 0;
+  const carpeta = (id, nombre) => ({
+    getId: () => id, getName: () => nombre,
+    createFolder: (n) => carpeta('carpeta-' + (++contador), n),
+    getFoldersByName: () => ({ hasNext: () => false }),
+    createFile: (blob) => { const fid = 'archivo-' + (++contador); archivos[fid] = blob; return { getId: () => fid }; },
+  });
+  const raiz = carpeta('raiz', 'Mi unidad');
   const ctx = {
     console: { error() {}, log: console.log },
     Logger: { log() {} },
@@ -107,6 +119,15 @@ export function crearEntorno(pestanas, opciones = {}) {
       releaseLock() { cerrojoOcupado = false; },
     }) },
     ContentService: { MimeType: { JSON: 'json' }, createTextOutput: (t) => ({ texto: t, setMimeType() { return this; } }) },
+    DriveApp: {
+      getFileById: (id) => {
+        if (id === 'hoja-ficticia') return { getParents: () => { let n = 0; return { hasNext: () => n === 0, next: () => { n++; return raiz; } }; } };
+        if (!archivos[id]) throw new Error('No existe ' + id);
+        return { getBlob: () => archivos[id] };
+      },
+      getFolderById: (id) => { throw new Error('No existe ' + id); },
+      getRootFolder: () => raiz,
+    },
     UrlFetchApp: { fetch: (url, params) => {
       peticionesRed.push({ url, params });
       if (!opciones.urlFetch) throw new Error('Sin conexión (simulador)');
@@ -117,14 +138,17 @@ export function crearEntorno(pestanas, opciones = {}) {
       formatDate: formatear,
       getUuid: () => crypto.randomUUID(),
       base64Encode: (b) => Buffer.from(b).toString('base64'),
+      base64Decode: (t) => { const b = Buffer.from(t, 'base64'); if (!b.length && t) throw new Error('base64'); return [...b]; },
+      newBlob: (bytes, tipo, nombre) => ({ getBytes: () => bytes, getContentType: () => tipo, getName: () => nombre }),
       computeHmacSha256Signature: (v, k) => [...crypto.createHmac('sha256', k).update(v).digest()],
       Charset: { UTF_8: 'utf8' },
     },
   };
   vm.createContext(ctx);
-  vm.runInContext(fs.readFileSync(new URL('../../servidores/salidas/Code.gs', import.meta.url), 'utf8'), ctx, { filename: 'Code.gs' });
+  const servidor = opciones.codigo || 'salidas';
+  vm.runInContext(fs.readFileSync(new URL('../../servidores/' + servidor + '/Code.gs', import.meta.url), 'utf8'), ctx, { filename: servidor + '/Code.gs' });
   return {
-    ctx, hojas, props, peticionesRed,
+    ctx, hojas, props, peticionesRed, archivos,
     vaciarCache: () => { cache = {}; },
     ocuparCerrojo: (v) => { cerrojoOcupado = v; },
     /** Petición como la que manda la app, a una hora concreta. */

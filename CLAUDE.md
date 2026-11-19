@@ -60,7 +60,7 @@ La intranet copia código de las apps existentes, pero **no escribe en ellas**:
   la prop `seccion`, mismo guardado; requieren además ser administrador de Convivencia), Permisos y Horarios
   (lector del PDF de Séneca en `src/nucleo/seneca`). En Convivencia solo quedan los cursos escolares (`seccion="convivencia"`).
 - Módulos: `convivencia` (notas en `docs/convivencia.md`), `salidas` (notas en `docs/salidas.md`, servidor en
-  `servidores/salidas/Code.gs`) y `guardias` (pendiente).
+  `servidores/salidas/Code.gs`) y `guardias` (notas en `docs/guardias.md`, servidor en `servidores/guardias/Code.gs`).
 
 ## Pruebas
 
@@ -68,7 +68,7 @@ La intranet copia código de las apps existentes, pero **no escribe en ellas**:
 - `npm run test:convivencia`: servidor y app de convivencia con Drive simulado y datos ficticios.
 - `npm run test:salidas`: servidor de salidas (simulador) y lector de horarios de Séneca.
 - `npm run test:acceso`: vales entre servidores (`acceso_unico`), servidor central (`datos_centro`) y salidas leyendo
-  del servidor central (`salidas_central`).
+  del servidor central (`salidas_central`) y guardias (`guardias`).
 - `npm test`: todas las anteriores.
 - Probar la intranet entera sin Google (servidores simulados): ver la cabecera de `pruebas/convivencia/servidor-local.mts`.
 - `npm run test:seguridad`: auditoría de convivencia. En PRUEBAS fallan SEC-11 y SEC-13, igual que en

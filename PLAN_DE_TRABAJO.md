@@ -33,7 +33,11 @@ Igual que con convivencia: los cambios nuevos de salidas, mejor hacerlos ya en l
 
 ## Fase 4 – Guardias
 
-- [ ] Ausencias, cuadrante de guardias (horario de Séneca), propuesta de cobertura, histórico.
+- [x] Ausencias, cuadrante de guardias (horario de Séneca), reparto automático, registro y recuento (19/11/2026,
+      ver `docs/guardias.md`). Motivo solo para JEFATURA; recuento desde el 1 de septiembre.
+- [ ] Miguel Ángel: pegar el servidor central nuevo, crear el servidor de guardias de pruebas (hoja en
+      proyectoIntranet/PRUEBAS) y pasar su URL para ponerla en `src/modulos/guardias/config/entorno.ts`.
+- [ ] Volver a subir el PDF de horarios de Séneca en el panel (para guardar las horas de guardia y las aulas).
 
 ## Pendiente (cuando proceda) – Panel de control unificado
 
@@ -84,7 +88,7 @@ Pasos:
 Drive (19/11/2026): todo lo de la intranet va en la carpeta `proyectoIntranet` del Drive de Miguel Ángel
 (`proyectoIntranet/PRUEBAS/`: API_Intranet_PRUEBAS, hoja de salidas, SIGC_PRUEBAS y lo nuevo, como guardias;
 más adelante `proyectoIntranet/PRODUCCION/`). Siempre en Mi unidad, mismo propietario. La convivencia en uso no se mueve.
-- [ ] Paso 4: guardias.
+- [x] Paso 4: guardias (pendiente de configurar en Apps Script).
 - [ ] Al final: cambio de curso desde el panel.
 
 Resumen de la propuesta:

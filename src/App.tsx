@@ -11,6 +11,7 @@ import { LoginView } from './modulos/convivencia/components/LoginView';
 const CARGADORES: Partial<Record<IdModulo, React.LazyExoticComponent<React.ComponentType>>> = {
   convivencia: lazy(() => import('./modulos/convivencia/App')),
   salidas: lazy(() => import('./modulos/salidas/App')),
+  guardias: lazy(() => import('./modulos/guardias/App')),
   panel: lazy(() => import('./modulos/panel/App')),
 };
 

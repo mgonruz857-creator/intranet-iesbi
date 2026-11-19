@@ -90,6 +90,17 @@ function anchoAprox(s: string) { return s.length * 4.8; }
 
 function hora(s: string) { const [h, m] = s.split(':'); return h.padStart(2, '0') + ':' + m; }
 
+/**
+ * Casillas de guardia del horario de Séneca: '' si es una clase, 'GUARDIA_RECREO' si es de recreo
+ * (lo dice la casilla o la franja dura 35 minutos o menos) y 'GUARDIA' en otro caso.
+ */
+export function tipoGuardia(t: Pick<Tramo, 'asignatura' | 'aula' | 'desde' | 'hasta'>): '' | 'GUARDIA' | 'GUARDIA_RECREO' {
+  const texto = (t.asignatura + ' ' + t.aula).toUpperCase();
+  if (!/GUARDIA/.test(texto)) return '';
+  const min = (h: string) => { const [a, b] = h.split(':').map(Number); return a * 60 + b; };
+  return /RECREO/.test(texto) || min(t.hasta) - min(t.desde) <= 35 ? 'GUARDIA_RECREO' : 'GUARDIA';
+}
+
 // ───────── Correspondencias con la app ─────────
 
 export function normalizarNombre(s: string): string {

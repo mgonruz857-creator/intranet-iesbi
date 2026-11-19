@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { FileUp, Save } from 'lucide-react';
 import { llamarApi, GRUPOS, etiquetaGrupo, nombreCompleto, type DocentePanel, type FilaHorario } from '../api';
-import { buscarDocente, grupoAutomatico, interpretarPagina, type PaginaHorario } from '../../../nucleo/seneca/horarioSeneca';
+import { buscarDocente, grupoAutomatico, interpretarPagina, tipoGuardia, type PaginaHorario } from '../../../nucleo/seneca/horarioSeneca';
 
 const CLAVE_EQUIVALENCIAS = 'gbcs_equivalencias_grupos';
 const NOMBRES_DIA = ['', 'L', 'M', 'X', 'J', 'V'];
@@ -25,7 +25,8 @@ export default function Horarios({ profesores, horarios, avisar, alGuardar }: Pr
       <section className="bg-white border border-slate-200 rounded-2xl p-4 text-sm space-y-2">
         <h2 className="text-sm font-bold">Estado</h2>
         <p className="text-slate-600">
-          {conHorario.size} docentes con horario ({horarios.length} horas guardadas) · {sinHorario.length} sin horario.
+          {conHorario.size} docentes con horario ({horarios.length} horas guardadas, de ellas{' '}
+          {horarios.filter((f) => String(f[4]).startsWith('GUARDIA')).length} de guardia) · {sinHorario.length} sin horario.
         </p>
         {sinHorario.length > 0 && (
           <details className="text-xs">
@@ -95,13 +96,14 @@ export function ImportarHorario({ docentes, grupos, avisar, alGuardar }: Importa
   const codigo = (texto: string) => grupoDe[texto] ?? grupoAutomatico(texto, grupos);
 
   const filas = useMemo(() => {
-    const out: [string, number, string, string, string][] = [];
+    const out: FilaHorario[] = [];
     paginas.forEach((p) => {
       const email = docenteDe[p.profesor];
       if (!email) return;
       p.tramos.forEach((t) => {
-        const g = t.grupos.map(codigo).find(Boolean);
-        if (g) out.push([email, t.dia, t.desde, t.hasta, g]);
+        const guardia = tipoGuardia(t);
+        const g = guardia || t.grupos.map(codigo).find(Boolean);
+        if (g) out.push([email, t.dia, t.desde, t.hasta, g, guardia ? '' : t.aula]);
       });
     });
     return out;
@@ -183,7 +185,7 @@ export function ImportarHorario({ docentes, grupos, avisar, alGuardar }: Importa
                   {filas.map((f, i) => (
                     <tr key={i} className="border-b border-slate-100">
                       <td className="px-2 py-1 break-all">{f[0]}</td><td className="px-2 py-1">{NOMBRES_DIA[f[1]]}</td>
-                      <td className="px-2 py-1 tabular-nums">{f[2]}–{f[3]}</td><td className="px-2 py-1">{etiquetaGrupo(f[4])}</td>
+                      <td className="px-2 py-1 tabular-nums">{f[2]}–{f[3]}</td><td className="px-2 py-1">{etiquetaGrupo(f[4])}</td><td className="px-2 py-1">{f[5] || ''}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -37,7 +37,7 @@ export const MODULOS: Modulo[] = [
     nombre: 'Guardias',
     descripcion: 'Ausencias del profesorado y cobertura de guardias.',
     icono: CalendarClock,
-    disponible: false,
+    disponible: true,
   },
   {
     id: 'panel',
