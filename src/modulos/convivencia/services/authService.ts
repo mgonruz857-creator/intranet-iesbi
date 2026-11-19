@@ -415,7 +415,7 @@ export class AuthService {
         { id: 'pac', label: 'Aula PAC', description: 'Monitor de guardia y custodia' },
         { id: 'analitica', label: 'Estadísticas & ROF', description: 'Analítica global del centro' },
         { id: 'sanciones', label: 'Sanciones', description: 'Expedientes, trámites y parte de sanción' },
-        { id: 'etl', label: 'Drive & Carga ETL', description: 'Importación Séneca y backups' },
+        { id: 'etl', label: 'Cursos escolares', description: 'Cursos escolares e histórico (profesorado, alumnado y copias: Panel del centro)' },
         ...tutoria,
       ];
     }

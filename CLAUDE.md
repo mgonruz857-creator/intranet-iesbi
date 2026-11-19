@@ -56,7 +56,9 @@ La intranet copia código de las apps existentes, pero **no escribe en ellas**:
   `datosCentro` (petición firmada con `SECRETO_INTRANET`, sin teléfonos ni datos de familias). Ver `docs/convivencia.md`.
   Salidas lo usa si su script tiene la propiedad `URL_SERVIDOR_CENTRAL` (ver `docs/salidas.md`).
 - **Panel del centro** (`src/modulos/panel`): solo para administradores del panel (`perfilIntranet` → `permisos.panel`).
-  Profesorado y permisos, horarios (lector del PDF de Séneca en `src/nucleo/seneca`) y, más adelante, alumnado.
+  Pestañas: Profesorado, Alumnado y Copias de seguridad (las pantallas de gestión de convivencia, `EtlImportView` con
+  la prop `seccion`, mismo guardado; requieren además ser administrador de Convivencia), Permisos y Horarios
+  (lector del PDF de Séneca en `src/nucleo/seneca`). En Convivencia solo quedan los cursos escolares (`seccion="convivencia"`).
 - Módulos: `convivencia` (notas en `docs/convivencia.md`), `salidas` (notas en `docs/salidas.md`, servidor en
   `servidores/salidas/Code.gs`) y `guardias` (pendiente).
 

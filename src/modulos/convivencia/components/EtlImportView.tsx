@@ -54,7 +54,20 @@ interface EtlImportViewProps {
   auditLogs: AuditLog[];
   profesores?: Profesor[];
   alumnos?: Alumno[];
+  /**
+   * Intranet: qué parte se muestra. 'profesorado', 'alumnado' y 'copias' van en el Panel del centro;
+   * 'convivencia' es lo que queda en Convivencia (cursos escolares y vaciado). Sin valor: todo, como antes.
+   */
+  seccion?: 'profesorado' | 'alumnado' | 'copias' | 'convivencia';
 }
+
+type PestanaEtl = 'alumnos' | 'profesores' | 'gestion_profesores' | 'gestion_alumnos' | 'cursos';
+const PESTANAS_SECCION: Record<string, PestanaEtl[]> = {
+  profesorado: ['gestion_profesores', 'profesores'],
+  alumnado: ['gestion_alumnos', 'alumnos'],
+  copias: [],
+  convivencia: ['cursos'],
+};
 
 export const EtlImportView: React.FC<EtlImportViewProps> = ({
   currentUser,
@@ -62,8 +75,11 @@ export const EtlImportView: React.FC<EtlImportViewProps> = ({
   auditLogs,
   profesores = [],
   alumnos = [],
+  seccion,
 }) => {
-  const [activeImportTab, setActiveImportTab] = useState<'alumnos' | 'profesores' | 'gestion_profesores' | 'gestion_alumnos' | 'cursos'>('alumnos');
+  const pestanasVisibles: PestanaEtl[] = seccion ? PESTANAS_SECCION[seccion] : ['alumnos', 'profesores', 'gestion_profesores', 'gestion_alumnos', 'cursos'];
+  const ver = (t: PestanaEtl) => pestanasVisibles.includes(t);
+  const [activeImportTab, setActiveImportTab] = useState<PestanaEtl>(pestanasVisibles[0] || 'alumnos');
   const [csvContent, setCsvContent] = useState<string>('');
   const [odsLoadedRows, setOdsLoadedRows] = useState<AlumnoImportRow[] | null>(null);
   const [odsLoadedProfesores, setOdsLoadedProfesores] = useState<ProfesorImportRow[] | null>(null);
@@ -803,7 +819,19 @@ El Amrani Youssef,4º ESO D`;
 
   return (
     <div className="space-y-6">
+      {seccion === 'convivencia' && (
+        <div className="bg-sky-50 border border-sky-200 rounded-2xl p-4 text-sm text-sky-900 flex flex-wrap items-center gap-3">
+          <p className="mr-auto">
+            El <b>profesorado</b>, el <b>alumnado</b> (altas, bajas, importación de Séneca) y las <b>copias de seguridad</b> se
+            gestionan ahora en el <b>Panel del centro</b> de la intranet.
+          </p>
+          <a href="#/panel" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sky-700 text-white text-xs font-semibold hover:bg-sky-800">
+            Ir al Panel del centro
+          </a>
+        </div>
+      )}
       {/* Top Banner: Storage Info & Cloud Architecture */}
+      {(!seccion || seccion === 'copias' || seccion === 'convivencia') && (
       <div className="bg-white border border-sky-100 rounded-2xl p-5 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-sky-100 pb-4">
           <div>
@@ -822,6 +850,7 @@ El Amrani Youssef,4º ESO D`;
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {seccion !== 'convivencia' && (
             <button
               onClick={handleCreateSnapshot}
               disabled={isBackingUp}
@@ -831,7 +860,9 @@ El Amrani Youssef,4º ESO D`;
               <Download className={`w-3.5 h-3.5 text-emerald-700 ${isBackingUp ? 'animate-bounce' : ''}`} />
               <span>{isBackingUp ? 'Generando y descargando...' : 'Descargar Snapshot Backup (.JSON)'}</span>
             </button>
+            )}
 
+            {seccion !== 'copias' && (
             <button
               type="button"
               onClick={() => setModalVaciarOpen(true)}
@@ -841,6 +872,7 @@ El Amrani Youssef,4º ESO D`;
               <Trash2 className="w-3.5 h-3.5 text-rose-600" />
               <span>Vaciar Alumnos y Partes</span>
             </button>
+            )}
           </div>
         </div>
 
@@ -901,11 +933,14 @@ El Amrani Youssef,4º ESO D`;
           </div>
         </div>
       </div>
+      )}
 
       {/* ETL Ingest Tabs & Card */}
+      {pestanasVisibles.length > 0 && (
       <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
         {/* Navigation Tabs */}
         <div className="flex border-b border-slate-200 bg-slate-50/70 p-2 gap-2">
+          {ver('alumnos') && (
           <button
             type="button"
             onClick={() => {
@@ -924,7 +959,9 @@ El Amrani Youssef,4º ESO D`;
             <GraduationCap className="w-4 h-4 text-sky-600" />
             <span>Alumnado (Formato .ODS 2 Columnas)</span>
           </button>
+          )}
 
+          {ver('profesores') && (
           <button
             type="button"
             onClick={() => {
@@ -943,7 +980,9 @@ El Amrani Youssef,4º ESO D`;
             <Upload className="w-4 h-4 text-sky-600" />
             <span>Importación CSV Claustro</span>
           </button>
+          )}
 
+          {ver('gestion_profesores') && (
           <button
             type="button"
             onClick={() => {
@@ -962,7 +1001,9 @@ El Amrani Youssef,4º ESO D`;
             <Users className="w-4 h-4 text-sky-600" />
             <span>Gestión del Claustro ({profesores.length})</span>
           </button>
+          )}
 
+          {ver('gestion_alumnos') && (
           <button
             type="button"
             onClick={() => {
@@ -981,7 +1022,9 @@ El Amrani Youssef,4º ESO D`;
             <Table className="w-4 h-4 text-sky-600" />
             <span>Censo y Bajas de Alumnos ({alumnos.length})</span>
           </button>
+          )}
 
+          {ver('cursos') && (
           <button
             type="button"
             onClick={() => {
@@ -1000,6 +1043,7 @@ El Amrani Youssef,4º ESO D`;
             <Calendar className="w-4 h-4 text-sky-600" />
             <span>Cursos Escolares e Histórico</span>
           </button>
+          )}
         </div>
 
         {activeImportTab === 'gestion_profesores' ? (
@@ -2771,6 +2815,7 @@ El Amrani Youssef,4º ESO D`;
         </div>
         )}
       </div>
+      )}
 
       {/* Audit Logs Table for ETL Operations */}
       <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">

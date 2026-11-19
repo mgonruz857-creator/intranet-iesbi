@@ -53,7 +53,7 @@ export default function Profesorado({ profesores, horarios, avisar, alCambiar }:
       </div>
       <p className="text-xs text-slate-500">
         Los cambios se guardan al momento y llegan a cada módulo en unos minutos. Administradores del panel: {admins}
-        {' '}(siempre debe quedar al menos uno). El permiso de convivencia se cambia en Convivencia.
+        {' '}(siempre debe quedar al menos uno). El permiso de convivencia (administrador o docente) se cambia en el rol de la ficha, en la pestaña Profesorado.
       </p>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">

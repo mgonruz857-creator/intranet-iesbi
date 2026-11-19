@@ -780,6 +780,7 @@ export default function App() {
             auditLogs={auditLogs}
             profesores={profesores}
             alumnos={alumnos}
+            seccion="convivencia"
           />
         )}
       </main>
