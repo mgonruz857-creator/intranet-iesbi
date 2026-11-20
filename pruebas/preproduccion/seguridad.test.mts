@@ -29,7 +29,7 @@ for (const token of ['', 'inventado', tAdmin.slice(0, -2) + 'xx']) {
   const sinPermiso = ACCIONES_CENTRAL.filter((a) => { const r = post({ accion: a, token, data: {}, email: CUENTAS.carmen }); return r.ok; });
   ok(`servidor central con token ${token ? 'falso' : 'vacío'}: ninguna acción responde bien`, sinPermiso.length === 0, sinPermiso.join());
 }
-const ACC_GUA = ['inicio', 'dia', 'misClases', 'registrarAusencia', 'misAusencias', 'anularAusencia', 'asignar', 'coger', 'marcarHecha', 'recuento', 'miHorario', 'profesorado', 'descargarTarea'];
+const ACC_GUA = ['inicio', 'dia', 'misClases', 'registrarAusencia', 'misAusencias', 'anularAusencia', 'asignar', 'coger', 'marcarHecha', 'recuento', 'miHorario', 'profesorado', 'descargarTarea', 'quitarHora', 'misGuardias'];
 const ACC_SAL = ['estado', 'autorizar', 'regreso', 'anular', 'historico', 'profesorado', 'guardarHorario'];
 ok('guardias sin sesión: todo rechazado', ACC_GUA.every((a) => !gua(a, 'falso').ok));
 ok('salidas sin sesión: todo rechazado', ACC_SAL.every((a) => !sal(a, 'falso').ok));

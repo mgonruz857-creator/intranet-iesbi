@@ -12,7 +12,7 @@
     "test:seguridad": "tsx pruebas/convivencia/seguridad.ts",
     "test:salidas": "node --experimental-strip-types --no-warnings --test pruebas/salidas/servidor.test.mjs pruebas/salidas/horario.test.mts",
     "test": "npm run test:convivencia && npm run test:salidas && npm run test:acceso && npm run test:preproduccion",
-    "test:acceso": "tsx pruebas/acceso_unico.test.mts && tsx pruebas/datos_centro.test.mts && tsx pruebas/salidas_central.test.mts && tsx pruebas/guardias.test.mts && tsx pruebas/servidor_unico.test.mts && tsx pruebas/cambio_curso.test.mts",
+    "test:acceso": "tsx pruebas/acceso_unico.test.mts && tsx pruebas/datos_centro.test.mts && tsx pruebas/salidas_central.test.mts && tsx pruebas/guardias.test.mts && tsx pruebas/guardias_modificar.test.mts && tsx pruebas/servidor_unico.test.mts && tsx pruebas/cambio_curso.test.mts",
     "test:preproduccion": "for f in pruebas/preproduccion/*.test.mts; do echo \"== $f\"; tsx \"$f\" || exit 1; done"
   },
   "dependencies": {

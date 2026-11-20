@@ -24,6 +24,13 @@ Módulo de la intranet para ausencias del profesorado y cobertura de guardias. D
   guardia. Sin motivos. (Se puede guardar en PDF desde el diálogo de imprimir.)
 - **Mi horario (20/11/2026):** cada docente ve e imprime su horario semanal (acción `miHorario`; incluye las horas
   prestadas si es sustituto). Jefatura puede ver el de cualquier docente.
+- **Modificar una ausencia (1.3.0, 20/11/2026):** al elegir un día con ausencia ya comunicada, la pantalla pasa a
+  "Modificar": las horas comunicadas salen marcadas con "Quitar esta hora" (`quitarHora`) y las demás se pueden marcar
+  y añadir a la misma ausencia (`registrarAusencia` con `ausencia`). `misClases` devuelve `comunicadas`. Si se quita la
+  última hora, la ausencia se anula. No se quita una hora con la guardia ya hecha; un día pasado solo lo cambia
+  Jefatura/Dirección. En "Mis ausencias", botón "Modificar".
+- **Aviso al entrar (1.3.0):** cada docente ve arriba "Hoy tiene N guardias asignadas" con hora, grupo, aula y a quién
+  sustituye (acción `misGuardias`, sin el motivo).
 
 ## Piezas
 

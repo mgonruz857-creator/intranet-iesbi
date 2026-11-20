@@ -120,6 +120,8 @@ más adelante `proyectoIntranet/PRODUCCION/`). Siempre en Mi unidad, mismo propi
       elegido solo en el parte (`mi_horario` en los datos de convivencia); casillas grandes y «Todo el día/Ninguna» en
       Ausencias; Mi horario por días en el móvil; sin jerga; correo de almacenamiento solo para la administración;
       nombre del docente en Salidas (1.3.1); «Es el horario de…» para sustitutos (`sustituye_a`, guardias 1.2.1).
+- [x] Guardias 1.3.0 (20/11/2026): modificar una ausencia ya comunicada (añadir o quitar horas) y aviso al entrar de las
+      guardias asignadas hoy (prueba `pruebas/guardias_modificar.test.mts`).
 - [ ] Pegar Intranet.gs, Salidas.gs y Guardias.gs nuevos en API_Intranet_PRUEBAS y probar el cambio de curso (Miguel Ángel).
 - [x] Pruebas antes de producción (20/11/2026, `pruebas/preproduccion/`, `npm run test:preproduccion`): seguridad (44),
       acceso (34), concurrencia (40 docentes a la vez), volumen (un curso de 750 alumnos y 5.000 partes: 3,8 MB),

@@ -33,7 +33,7 @@
 
 // ───────────────────────── Configuración ─────────────────────────
 
-var VERSION = '1.2.2';
+var VERSION = '1.3.0';
 var ZONA = 'Europe/Madrid';
 var DOMINIO = '@g.educaand.es';
 var DURACION_SESION_SEG = 21600;    // 6 horas (máximo de CacheService), se renueva con el uso
@@ -69,6 +69,8 @@ var MENSAJES = {
   'ERROR_NO_ES_DE_GUARDIA': 'Solo puede coger una guardia el docente que está de guardia a esa hora.',
   'ERROR_YA_ASIGNADA': 'Esa guardia ya está asignada.',
   'ERROR_YA_TIENE_GUARDIA': 'Ya tiene otra guardia a esa hora.',
+  'ERROR_YA_HECHA': 'Esa guardia ya está hecha: no se puede quitar.',
+  'ERROR_PASADA': 'Solo Jefatura o Dirección pueden cambiar una ausencia de un día ya pasado.',
   'ERROR_OCUPADO': 'El sistema está atendiendo otras peticiones. Inténtelo de nuevo en unos segundos.',
   'ERROR_ACCION': 'Acción desconocida.',
   'ERROR_CONFIG': 'El servidor no está configurado del todo.'
@@ -112,6 +114,8 @@ function atender_(req, ahora, emailUnico) {
       case 'registrarAusencia': return conCerrojo_(function () { return registrarAusencia_(u, req, ahora); });
       case 'anularAusencia': return conCerrojo_(function () { return anularAusencia_(u, req, ahora); });
       case 'misAusencias': return misAusencias_(u, req, ahora);
+      case 'quitarHora': return conCerrojo_(function () { return quitarHora_(u, req, ahora); });
+      case 'misGuardias': return misGuardias_(u, req, ahora);
       case 'dia': return dia_(u, req, ahora);
       case 'marcarHecha': return conCerrojo_(function () { return marcarHecha_(u, req, ahora); });
       case 'asignar': return conCerrojo_(function () { return asignar_(u, req, ahora); });
@@ -285,7 +289,20 @@ function misClases_(u, req) {
   var clases = (central_().horario[email] || []).filter(function (t) { return t[0] === dia && !/^GUARDIA/.test(t[3]); })
     .map(function (t) { return { desde: texto_(t[1]), hasta: texto_(t[2]), grupo: t[3], aula: t[4] }; });
   clases.sort(function (a, b) { return a.desde.localeCompare(b.desde); });
-  return { ok: true, fecha: fecha, clases: clases };
+  return { ok: true, fecha: fecha, clases: clases, comunicadas: horasComunicadas_(email, fecha) };
+}
+
+/** Horas de ausencia ya comunicadas por un docente un día (para modificar la ausencia: añadir o quitar horas). */
+function horasComunicadas_(email, fecha) {
+  var activas = {};
+  filas_(HOJA_AUSENCIAS).forEach(function (a) { if (a[A.estado] === 'ACTIVA' && a[A.email] === email && a[A.fecha] === fecha) activas[a[A.id]] = true; });
+  var r = filas_(HOJA_GUARDIAS).filter(function (g) { return activas[g[G.ausencia]] && g[G.estado] !== 'ANULADA'; })
+    .map(function (g) {
+      return { id: g[G.id], idAusencia: g[G.ausencia], desde: comoHora_(g[G.desde]), hasta: comoHora_(g[G.hasta]),
+        grupo: g[G.grupo], tarea: g[G.tarea], archivo: g[G.archivoNombre] || '', hecha: g[G.estado] === 'HECHA' };
+    });
+  r.sort(function (a, b) { return a.desde.localeCompare(b.desde); });
+  return r;
 }
 
 /**
@@ -327,9 +344,18 @@ function registrarAusencia_(u, req, ahora) {
   });
   if (yaAusente) return fallo_('ERROR_YA_AUSENTE');
 
-  var idAus = 'aus_' + Utilities.getUuid().slice(0, 12);
   var sello = ahora.toISOString();
-  anadirFilas_(HOJA_AUSENCIAS, [[idAus, fecha, email, String(req.motivo || '').trim().slice(0, 500), u.email, sello, 'ACTIVA']]);
+  var idAus;
+  if (req.ausencia) {
+    // Añadir horas a una ausencia ya comunicada (mismo docente y mismo día)
+    var ia = indice_(ausencias, A.id, req.ausencia);
+    if (ia < 0 || ausencias[ia][A.estado] !== 'ACTIVA' || ausencias[ia][A.email] !== email || ausencias[ia][A.fecha] !== fecha) return fallo_('ERROR_NO_ENCONTRADA');
+    if (fecha < fechaTexto_(ahora) && !u.jefatura) return fallo_('ERROR_PASADA');
+    idAus = req.ausencia;
+  } else {
+    idAus = 'aus_' + Utilities.getUuid().slice(0, 12);
+    anadirFilas_(HOJA_AUSENCIAS, [[idAus, fecha, email, String(req.motivo || '').trim().slice(0, 500), u.email, sello, 'ACTIVA']]);
+  }
   var nuevas = horas.map(function (h) {
     var archivo = h.archivo ? guardarArchivo_(h.archivo) : null;
     return ['gua_' + Utilities.getUuid().slice(0, 12), idAus, fecha, texto_(h.desde), texto_(h.hasta), h.grupo, h.aula,
@@ -376,6 +402,37 @@ function anularAusencia_(u, req, ahora) {
     }
   });
   return { ok: true };
+}
+
+/** Quitar una hora de una ausencia. Si no le quedan horas, la ausencia se anula. */
+function quitarHora_(u, req, ahora) {
+  var guardias = filas_(HOJA_GUARDIAS);
+  var i = indice_(guardias, G.id, req.id);
+  if (i < 0 || guardias[i][G.estado] === 'ANULADA') return fallo_('ERROR_NO_ENCONTRADA');
+  var g = guardias[i];
+  var ausencias = filas_(HOJA_AUSENCIAS);
+  var ia = indice_(ausencias, A.id, g[G.ausencia]);
+  if (ia < 0 || ausencias[ia][A.estado] !== 'ACTIVA') return fallo_('ERROR_NO_ENCONTRADA');
+  if (ausencias[ia][A.email] !== u.email) exigirJefatura_(u);
+  if (g[G.fecha] < fechaTexto_(ahora) && !u.jefatura) return fallo_('ERROR_PASADA');
+  if (g[G.estado] === 'HECHA') return fallo_('ERROR_YA_HECHA');
+  hoja_(HOJA_GUARDIAS).getRange(i + 2, G.estado + 1, 1, 4).setValues([['ANULADA', g[G.incidencias], u.email, ahora.toISOString()]]);
+  var quedan = guardias.some(function (o, k) { return k !== i && o[G.ausencia] === g[G.ausencia] && o[G.estado] !== 'ANULADA'; });
+  if (!quedan) hoja_(HOJA_AUSENCIAS).getRange(ia + 2, A.estado + 1).setValues([['ANULADA']]);
+  return { ok: true, ausenciaAnulada: !quedan };
+}
+
+/** Guardias asignadas al docente un día (hoy si no se indica): se le avisan al entrar en el módulo. */
+function misGuardias_(u, req, ahora) {
+  var fecha = req.fecha ? validarFecha_(req.fecha, true) : fechaTexto_(ahora);
+  var prof = profesorado_();
+  var ausencias = {};
+  filas_(HOJA_AUSENCIAS).forEach(function (a) { if (a[A.estado] === 'ACTIVA') ausencias[a[A.id]] = a; });
+  var lista = filas_(HOJA_GUARDIAS).filter(function (g) {
+    return g[G.fecha] === fecha && g[G.asignada] === u.email && g[G.estado] !== 'ANULADA' && ausencias[g[G.ausencia]];
+  }).map(function (g) { return vistaGuardia_(g, prof, u, ausencias[g[G.ausencia]]); });
+  lista.sort(function (a, b) { return a.desde.localeCompare(b.desde); });
+  return { ok: true, fecha: fecha, guardias: lista };
 }
 
 function misAusencias_(u, req, ahora) {

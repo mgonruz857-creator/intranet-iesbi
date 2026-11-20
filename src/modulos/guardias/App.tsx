@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import { BarChart3, CalendarDays, Clock, LogOut, UserMinus } from 'lucide-react';
+import { BarChart3, BellRing, CalendarDays, Clock, LogOut, UserMinus } from 'lucide-react';
 import Dia from './components/Dia';
 import Ausencias from './components/Ausencias';
 import Recuento from './components/Recuento';
 import MiHorario from './components/MiHorario';
 import { EVENTO_SESION_CADUCADA, guardarToken, llamarApi, tokenGuardado, usarServidorUnico } from './api';
 import { ES_ENTORNO_PRUEBAS } from './config/entorno';
-import type { UsuarioGuardias } from './tipos';
+import type { Guardia, UsuarioGuardias } from './tipos';
+import { etiquetaGrupo } from '../panel/api';
 import { entrarServidorUnico, pedirVale, cerrarSesionIntranet } from '../../nucleo/accesoUnico';
 
 type Vista = 'dia' | 'ausencias' | 'horario' | 'recuento';
@@ -25,6 +26,15 @@ export default function App() {
   const [error, setError] = useState('');
   const [vista, setVista] = useState<Vista>('dia');
   const [aviso, setAviso] = useState<AvisoDatos | null>(null);
+  const [misGuardias, setMisGuardias] = useState<Guardia[]>([]);
+
+  // Al entrar: las guardias que tiene asignadas hoy
+  useEffect(() => {
+    if (!usuario) { setMisGuardias([]); return; }
+    let vigente = true;
+    llamarApi<{ guardias: Guardia[] }>('misGuardias').then((r) => { if (vigente && r.ok) setMisGuardias(r.guardias || []); });
+    return () => { vigente = false; };
+  }, [usuario, vista]);
 
   const avisar = useCallback((texto: string, esError = false) => setAviso({ texto, error: esError, id: Date.now() }), []);
 
@@ -140,6 +150,27 @@ export default function App() {
             </div>
           </header>
           <main className="max-w-6xl mx-auto px-4 py-4 print:max-w-none print:p-0">
+            {misGuardias.length > 0 && (
+              <div role="status" className="print:hidden mb-4 rounded-2xl border border-amber-300 bg-amber-50 p-3 text-amber-950">
+                <div className="flex items-center gap-2 font-bold text-sm">
+                  <BellRing className="w-5 h-5 text-amber-700" />
+                  {misGuardias.length === 1 ? 'Hoy tiene 1 guardia asignada' : `Hoy tiene ${misGuardias.length} guardias asignadas`}
+                </div>
+                <ul className="mt-2 space-y-1 text-sm">
+                  {misGuardias.map((g) => (
+                    <li key={g.id} className="flex flex-wrap gap-x-2">
+                      <span className="font-semibold tabular-nums">{g.desde}–{g.hasta}</span>
+                      <span>{etiquetaGrupo(g.grupo)}{g.aula ? ` · Aula ${g.aula}` : ''}</span>
+                      {g.ausente && <span className="text-amber-900">· en lugar de {g.ausente}</span>}
+                      {g.estado === 'HECHA' && <span className="text-emerald-800 font-semibold">· hecha</span>}
+                    </li>
+                  ))}
+                </ul>
+                {vista !== 'dia' && (
+                  <button onClick={() => setVista('dia')} className="mt-2 text-sm font-semibold text-sky-800 hover:underline">Ver la tarea y marcarla como hecha</button>
+                )}
+              </div>
+            )}
             {vista === 'dia' && <Dia usuario={usuario} avisar={avisar} />}
             {vista === 'ausencias' && <Ausencias usuario={usuario} avisar={avisar} />}
             {vista === 'horario' && <MiHorario usuario={usuario} avisar={avisar} />}
