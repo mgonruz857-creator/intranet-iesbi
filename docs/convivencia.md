@@ -54,6 +54,18 @@ Antes de tocar nada, **no restaurar ni borrar sin que Miguel Ángel lo decida** 
   Ejecutar todas antes de entregar un cambio del servidor. 
 - Tipos y compilación: `npx tsc --noEmit -p .` y `npm run build`.
 
+## Curso escolar (servidor central)
+
+- El curso lo decide el servidor: `curso_actual` (si nunca se ha cambiado, por la fecha: desde septiembre, el nuevo).
+  `curso_actual`, `cursos_archivados` y `fecha_cambio_curso` solo los escribe el servidor (no cambian con `guardar`).
+- `cambiarCurso` (solo administradores del panel, Panel → Curso escolar): copia en `COPIAS_SEGURIDAD`, archivo
+  `Curso_AAAA-AAAA.json` con alumnado, partes, compensaciones y expedientes del curso cerrado, y vuelta a cero.
+- `leerCursoArchivado`: Analítica lee los cursos archivados (solo administración).
+- La app manda `curso_actual` al guardar; si no coincide tras un cambio de curso, el servidor responde
+  `CURSO_CAMBIADO` y la app vacía su caché y se recarga (así un dispositivo atrasado no resucita partes archivados).
+- Los partes de los expedientes abiertos se archivan con el curso; el expediente sigue abierto en el curso nuevo.
+- Convivencia ya no tiene su propio botón de nuevo curso (los cursos guardados antes en el navegador se siguen viendo).
+
 ## Reglas de la app que hay que respetar
 
 - Carnet de puntos: empieza en 10; los partes restan; las medidas restaurativas suman (máx. 10);

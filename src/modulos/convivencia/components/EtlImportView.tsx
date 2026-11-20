@@ -98,18 +98,6 @@ export const EtlImportView: React.FC<EtlImportViewProps> = ({
   const [modalVaciarOpen, setModalVaciarOpen] = useState(false);
 
   // Academic year management state
-  const [modalNuevoCursoOpen, setModalNuevoCursoOpen] = useState(false);
-  const [nuevoCursoInput, setNuevoCursoInput] = useState(() => {
-    const actual = StorageService.getCursoActual();
-    const match = actual.match(/^(\d{4})\/(\d{4})$/);
-    if (match) {
-      const y1 = parseInt(match[1], 10) + 1;
-      const y2 = parseInt(match[2], 10) + 1;
-      return `${y1}/${y2}`;
-    }
-    return '2027/2028';
-  });
-  const [limpiarAlumnosNuevoCurso, setLimpiarAlumnosNuevoCurso] = useState(true);
 
   // Feedback message banner for management actions
   const [actionFeedbackMsg, setActionFeedbackMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -434,28 +422,6 @@ El Amrani Youssef,4º ESO D`;
     });
     onImportCompleted();
     setTimeout(() => setActionFeedbackMsg(null), 6000);
-  };
-
-  const handleCrearNuevoCurso = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!nuevoCursoInput.trim()) return;
-
-    const res = StorageService.crearNuevoCursoEscolar(nuevoCursoInput.trim(), {
-      limpiarAlumnosParaNuevoODS: limpiarAlumnosNuevoCurso,
-      usuarioOperador: currentUser.email,
-    });
-
-    if (res.success) {
-      setModalNuevoCursoOpen(false);
-      setActionFeedbackMsg({
-        type: 'success',
-        text: `¡Apertura oficial del curso ${res.nuevoCurso} completada con éxito! El curso escolar previo (${res.cursoAnteriorArchivado}) ha sido sellado y archivado de forma inmutable para consultas y comparativas interanuales.`
-      });
-      onImportCompleted();
-      setTimeout(() => setActionFeedbackMsg(null), 9000);
-    } else {
-      alert(res.error || 'Error al tramitar la apertura del nuevo curso escolar.');
-    }
   };
 
   const handleLoadSampleInEditor = () => {
@@ -2254,21 +2220,20 @@ El Amrani Youssef,4º ESO D`;
               <div>
                 <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-sky-700" />
-                  <span>Cursos Escolares: Histórico Permanente y Apertura de Nuevo Curso</span>
+                  <span>Cursos Escolares: Histórico Permanente</span>
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Los datos de cada curso escolar se archivan de forma inmutable. Puedes abrir un nuevo curso escolar cuando finalice el actual; todos los partes pasados permanecen almacenados para su comparación interanual.
+                  Los datos de cada curso escolar se archivan en el servidor al cambiar de curso desde el Panel del centro (pestaña «Curso escolar»); todos los partes pasados permanecen almacenados para su comparación interanual en Analítica.
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setModalNuevoCursoOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer shrink-0"
+              <a
+                href="#/panel"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 text-xs font-bold rounded-xl transition-all shrink-0"
               >
-                <Plus className="w-4 h-4" />
-                <span>+ Apertura de Nuevo Curso</span>
-              </button>
+                <Calendar className="w-4 h-4" />
+                <span>El cambio de curso se hace en el Panel del centro</span>
+              </a>
             </div>
 
             {/* Tarjetas informativas de estado de cursos */}
@@ -2382,94 +2347,6 @@ El Amrani Youssef,4º ESO D`;
               </div>
             </div>
 
-            {/* Modal de Apertura de Nuevo Curso Escolar */}
-            {modalNuevoCursoOpen && (
-              <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-                <form
-                  onSubmit={handleCrearNuevoCurso}
-                  className="bg-white rounded-2xl max-w-lg w-full p-5 space-y-4 shadow-xl border border-slate-200 animate-in fade-in zoom-in-95 duration-100"
-                >
-                  <div className="flex items-center justify-between border-b border-slate-150 pb-2">
-                    <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
-                      <Calendar className="w-5 h-5 text-sky-600" />
-                      <span>Apertura de Nuevo Curso Escolar</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setModalNuevoCursoOpen(false)}
-                      className="text-slate-400 hover:text-slate-700 cursor-pointer"
-                    >
-                      ✕
-                    </button>
-                  </div>
-
-                  <div className="p-3 bg-sky-50 border border-sky-200 rounded-xl text-xs text-sky-950 space-y-2">
-                    <p className="font-bold flex items-center gap-1.5 text-sky-900">
-                      <Archive className="w-4 h-4 text-sky-700" />
-                      <span>Preservación y Archivado Inmutable</span>
-                    </p>
-                    <p className="text-[11px] text-sky-800">
-                      El curso actual (<strong>{StorageService.getCursoActual()}</strong>) se archivará de forma permanente y quedará disponible para consultas y comparativas en cualquier momento en la sección de <strong>Analítica</strong>.
-                    </p>
-                  </div>
-
-                  <div className="space-y-3 text-xs">
-                    <div>
-                      <label className="block font-semibold text-slate-700 mb-1">
-                        Identificador del Nuevo Curso Escolar: *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={nuevoCursoInput}
-                        onChange={(e) => setNuevoCursoInput(e.target.value)}
-                        placeholder="Ejemplo: 2027/2028"
-                        className="w-full p-2 border border-slate-300 rounded-xl focus:outline-sky-600 font-mono font-bold text-sm"
-                      />
-                      <span className="text-[10px] text-slate-500 mt-1 block">
-                        Formato oficial recomendado: <code>AAAA/AAAA</code> (ej. <code>2027/2028</code>).
-                      </span>
-                    </div>
-
-                    <div className="space-y-2 pt-1 border-t border-slate-100">
-                      <label className="flex items-start gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={limpiarAlumnosNuevoCurso}
-                          onChange={(e) => setLimpiarAlumnosNuevoCurso(e.target.checked)}
-                          className="mt-0.5 rounded text-sky-600 focus:ring-sky-500"
-                        />
-                        <span className="text-slate-700 text-xs">
-                          <strong>Vaciar censo de alumnos</strong> para recibir la nueva carga masiva del archivo oficial <code>.ODS</code> del centro escolar. (Recomendado al inicio de curso).
-                        </span>
-                      </label>
-
-                      <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] text-slate-600 space-y-1">
-                        <div>✓ El claustro de profesores y credenciales se mantendrán activos.</div>
-                        <div>✓ El curso actual queda archivado con todos sus partes para comparativas.</div>
-                        <div>✓ El nuevo curso arranca con el contador de partes a cero.</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-                    <button
-                      type="button"
-                      onClick={() => setModalNuevoCursoOpen(false)}
-                      className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-xl transition-colors cursor-pointer shadow-xs"
-                    >
-                      Confirmar y Abrir Curso Escolar
-                    </button>
-                  </div>
-                </form>
-              </div>
-            )}
           </div>
         ) : (
         /* PESTAÑAS DE IMPORTACIÓN DE ALUMNADO Y CSV CLAUSTRO */

@@ -107,7 +107,13 @@ Drive (19/11/2026): todo lo de la intranet va en la carpeta `proyectoIntranet` d
 (`proyectoIntranet/PRUEBAS/`: API_Intranet_PRUEBAS, hoja de salidas, SIGC_PRUEBAS y lo nuevo, como guardias;
 más adelante `proyectoIntranet/PRODUCCION/`). Siempre en Mi unidad, mismo propietario. La convivencia en uso no se mueve.
 - [x] Paso 4: guardias (pendiente de configurar en Apps Script).
-- [ ] Al final: cambio de curso desde el panel.
+- [x] Cambio de curso desde el panel (20/11, aprobado por Miguel Ángel punto por punto): pestaña Curso escolar,
+      solo administradores del panel, se confirma escribiendo el curso nuevo. Copia de seguridad completa antes;
+      el curso cerrado va a `Curso_AAAA-AAAA.json` (Analítica lo carga sola); partes y compensaciones a cero, siguen
+      los expedientes abiertos; alumnado a 10 puntos (opción de vaciarlo); se borran horarios y tutorías; terminan las
+      sustituciones (los sustitutos no marcados se dan de baja). Guardias y salidas no cambian. Un dispositivo con el
+      curso anterior no puede guardar (`CURSO_CAMBIADO`, se recarga). Pruebas en `pruebas/cambio_curso.test.mts`.
+- [ ] Pegar el Intranet.gs nuevo en API_Intranet_PRUEBAS y probar el cambio de curso (Miguel Ángel).
 
 Resumen de la propuesta:
 - Una única fuente de "datos del centro" (profesorado, alumnado, grupos, horarios, curso escolar) con un panel

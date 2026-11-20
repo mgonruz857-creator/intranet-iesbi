@@ -41,6 +41,8 @@ export interface DriveDatabaseState {
   expedientes_sancion?: ExpedienteSancion[];
   deleted_expedientes?: string[];
   reset_credenciales_emails?: string[];
+  curso_actual?: string;
+  cursos_archivados?: unknown[];
 }
 
 export class GoogleDriveSyncService {
@@ -121,6 +123,8 @@ export class GoogleDriveSyncService {
         cuenta_institucional: unidad.email,
         drive_folder_id: unidad.folderId || CARPETA_DRIVE_ID,
       },
+      // El servidor rechaza los datos de un curso que ya se ha cerrado
+      curso_actual: StorageService.getCursoActual(),
       profesores: profs,
       alumnos: StorageService.getAlumnos(),
       sanciones: StorageService.getSanciones(),
@@ -200,6 +204,10 @@ export class GoogleDriveSyncService {
       }
 
       this.lastRemoteTimestamp = remoteData.timestamp || new Date().toISOString();
+
+      // Curso escolar (lo decide el servidor; se cambia desde el Panel del centro) y cursos ya cerrados
+      if (typeof remoteData.curso_actual === 'string') StorageService.setCursoActual(remoteData.curso_actual);
+      if (Array.isArray(remoteData.cursos_archivados)) StorageService.setCursosArchivadosServidor(remoteData.cursos_archivados);
 
       let localHasPendingData = false;
 
@@ -508,6 +516,18 @@ export class GoogleDriveSyncService {
       return { success: true, message: 'Datos guardados en Google Drive.', avisos };
     }
 
+    if (respuesta.codigo === 'CURSO_CAMBIADO') {
+      // Se ha cambiado de curso desde el panel: lo pendiente de este dispositivo era del curso cerrado.
+      // Se empieza de cero con los datos del servidor.
+      this.finishPush();
+      StorageService.clearMemoryCacheForFreshLogin();
+      guardarCola(AuthService.getCurrentUser()?.email);
+      if (typeof window !== 'undefined') {
+        window.alert(respuesta.error || 'Ha empezado un curso escolar nuevo. La página se va a recargar.');
+        window.location.reload();
+      }
+      return { success: false, message: respuesta.error || 'Ha empezado un curso escolar nuevo.' };
+    }
     this.lastPushError = respuesta.error || 'Error desconocido al guardar.';
     guardarCola(AuthService.getCurrentUser()?.email);
     this.avisarEstadoGuardado(false);
@@ -517,6 +537,19 @@ export class GoogleDriveSyncService {
       setTimeout(() => this.triggerFastSync(0), 15000);
     }
     return { success: false, message: `No se ha podido guardar en Google Drive: ${this.lastPushError}` };
+  }
+
+  /** Analítica: descarga del servidor los cursos cerrados que aún no se tienen. Devuelve cuántos ha cargado. */
+  static async cargarCursosArchivados(): Promise<number> {
+    const token = AuthService.getToken();
+    if (!token) return 0;
+    let n = 0;
+    for (const c of StorageService.getCursosArchivadosServidor()) {
+      if (StorageService.archivoCursoCargado(c.id_curso)) continue;
+      const r = await llamarApi('leerCursoArchivado', { token, curso: c.id_curso }, 60000);
+      if (r.ok && r.curso) { StorageService.guardarArchivoCurso(r.curso); n++; }
+    }
+    return n;
   }
 
   /** Notifica a la interfaz si el último guardado llegó a Google Drive. */

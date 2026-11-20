@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { 
   BarChart3, 
   MapPin, 
@@ -54,6 +54,7 @@ import {
   HISTORICAL_COMPENSACIONES 
 } from '../data/historicalData';
 import { StorageService } from '../services/storageService';
+import { GoogleDriveSyncService } from '../services/googleDriveSyncService';
 import { generateMemoriaConvivenciaPdf } from '../utils/pdfGenerator';
 
 interface AnalyticsViewProps {
@@ -104,10 +105,21 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   compensaciones = [],
   onNavigateToCarnet 
 }) => {
+  // Cursos cerrados: se descargan del servidor al entrar en Analítica (sin elegir ningún archivo)
+  const [archivosCargados, setArchivosCargados] = useState(0);
+  const [cargandoArchivos, setCargandoArchivos] = useState(() => StorageService.getCursosArchivadosServidor().length > 0);
+  useEffect(() => {
+    let vigente = true;
+    GoogleDriveSyncService.cargarCursosArchivados()
+      .then((n) => { if (vigente && n) setArchivosCargados((x) => x + n); })
+      .finally(() => { if (vigente) setCargandoArchivos(false); });
+    return () => { vigente = false; };
+  }, []);
+
   // Available Academic Years (dynamic + archived + baseline)
   const availableYears = useMemo(() => {
     return StorageService.getCursosDisponibles();
-  }, []);
+  }, [archivosCargados]);
 
   const currentCourseId = useMemo(() => {
     return StorageService.getCursoActual();
@@ -120,6 +132,13 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
     const others = StorageService.getCursosDisponibles().filter(c => c.id !== StorageService.getCursoActual());
     return others.length > 0 ? others[0].id : '';
   });
+
+  // Al llegar los cursos anteriores del servidor, el segundo curso de la comparativa pasa a ser el más reciente
+  useEffect(() => {
+    if (compareYearB) return;
+    const otros = availableYears.filter(c => c.id !== currentCourseId);
+    if (otros.length) setCompareYearB(otros[0].id);
+  }, [availableYears, currentCourseId, compareYearB]);
 
   // Heatmap Metric
   const [selectedMetric, setSelectedMetric] = useState<'count' | 'points'>('count');
@@ -152,7 +171,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
     });
 
     return merged;
-  }, [sanciones]);
+  }, [sanciones, archivosCargados]);
 
   // Combine live compensaciones with archived real courses
   const allCompensacionesCombined = useMemo(() => {
@@ -168,7 +187,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
     });
 
     return merged;
-  }, [compensaciones]);
+  }, [compensaciones, archivosCargados]);
 
   // Filter dataset for Year A
   const datasetYearA = useMemo(() => {
@@ -667,6 +686,11 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
 
   return (
     <div className="space-y-6 overflow-x-clip">
+      {cargandoArchivos && (
+        <div className="px-4 py-2 rounded-xl bg-sky-50 border border-sky-200 text-xs text-sky-900">
+          Cargando los cursos anteriores para poder compararlos…
+        </div>
+      )}
       {/* 1. Header with Academic Year Controls & Comparison Switch */}
       <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100">

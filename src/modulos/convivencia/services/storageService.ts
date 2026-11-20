@@ -78,6 +78,13 @@ let memoryPartesMarcadosBorradosV2: Sancion[] = [];
 let memorySancionesRecuperadas: string[] = [];
 let memoryLastWriteTimestamp: string | null = null;
 let memoryHasLoadedFromDrive: boolean = false;
+// Cursos cerrados en el servidor (desde el Panel del centro): resumen y, una vez descargado, su archivo completo
+export interface CursoArchivadoServidor {
+  id_curso: string; archivo_id: string; archivo: string; fecha_cierre: string; cerrado_por: string;
+  total_alumnos: number; total_sanciones: number; total_compensaciones: number;
+}
+let memoryCursosServidor: CursoArchivadoServidor[] = [];
+const memoryArchivosCurso: Record<string, CursoAcademicoArchivo> = {};
 
 export const UNIDAD_INSTITUCIONAL_OFICIAL: UnidadInstitucionalConfig = {
   email: '14007180.aplicaciones@g.educaand.es',
@@ -2560,6 +2567,27 @@ export class StorageService {
   /**
    * Obtiene el identificador del curso escolar actualmente activo (ej. "2026/2027")
    */
+  /** El curso lo decide el servidor (lo trae cada lectura de datos). */
+  static setCursoActual(curso: string): void {
+    if (curso) localStorage.setItem(KEY_CURSO_ACTUAL, curso);
+  }
+
+  static setCursosArchivadosServidor(lista: CursoArchivadoServidor[]): void {
+    memoryCursosServidor = Array.isArray(lista) ? lista.filter((c) => c && c.id_curso) : [];
+  }
+
+  static getCursosArchivadosServidor(): CursoArchivadoServidor[] {
+    return memoryCursosServidor;
+  }
+
+  static guardarArchivoCurso(c: CursoAcademicoArchivo): void {
+    if (c && c.id_curso) memoryArchivosCurso[c.id_curso] = c;
+  }
+
+  static archivoCursoCargado(id: string): boolean {
+    return !!memoryArchivosCurso[id];
+  }
+
   static getCursoActual(): string {
     const curso = localStorage.getItem(KEY_CURSO_ACTUAL);
     if (!curso) {
@@ -2573,6 +2601,19 @@ export class StorageService {
    * Obtiene todos los cursos archivados históricamente
    */
   static getHistoricoCursos(): CursoAcademicoArchivo[] {
+    // Cursos cerrados en el servidor (los de todos los ordenadores); el archivo completo, cuando ya se ha descargado
+    const delServidor: CursoAcademicoArchivo[] = memoryCursosServidor.map((m) => memoryArchivosCurso[m.id_curso] || {
+      id_curso: m.id_curso, nombre: 'Curso Escolar ' + m.id_curso, fecha_inicio: '', fecha_cierre: m.fecha_cierre, activo: false,
+      cerrado_por: m.cerrado_por, total_alumnos: m.total_alumnos, total_sanciones: m.total_sanciones,
+      total_compensaciones: m.total_compensaciones,
+    });
+    const ids = new Set(delServidor.map((c) => c.id_curso));
+    // Cursos archivados antes solo en este navegador (versión anterior): se siguen mostrando
+    const locales = this.getHistoricoCursosLocales().filter((c) => !ids.has(c.id_curso) && c.id_curso !== this.getCursoActual());
+    return [...delServidor, ...locales];
+  }
+
+  private static getHistoricoCursosLocales(): CursoAcademicoArchivo[] {
     const raw = localStorage.getItem(KEY_HISTORICO_CURSOS);
     if (!raw) return [];
     try {

@@ -357,7 +357,9 @@ function copiaSeguridadDiaria(e) {
   var carpeta = carpetaCopias();
   var copias = copiasDiarias(carpeta).filter(function (c) { return c.fecha !== hoy; });
   // (a mano se copia siempre: quien la ejecuta ya ha revisado los datos)
-  if (automatico && copias.length) {
+  // Tras un cambio de curso los partes vuelven a cero: no es un borrado por error
+  var trasCambioCurso = !!(d.fecha_cambio_curso && copias.length && String(d.fecha_cambio_curso).slice(0, 10) >= copias[0].fecha);
+  if (automatico && copias.length && !trasCambioCurso) {
     var anteriores = -1;
     try { anteriores = partesActivos(decodificarDb(copias[0].f.getBlob().getDataAsString())); } catch (err2) { /* se copia igualmente */ }
     if (anteriores >= 0 && anteriores - partes >= 10 && partes < anteriores * 0.8) {
@@ -851,6 +853,8 @@ function doPost(e) {
       case 'guardarHorarios': return salida(guardarHorarios(req));
       case 'resolverHorarioPendiente': return salida(resolverHorarioPendiente(req));
       case 'gestionarSustitucion': return salida(gestionarSustitucion(req));
+      case 'cambiarCurso': return salida(cambiarCurso(req));
+      case 'leerCursoArchivado': return salida(leerCursoArchivado(req));
       case 'datosCentro': return salida(datosCentro(req));
       default: return salida({ ok: false, error: 'Acción desconocida.' });
     }
@@ -1393,7 +1397,7 @@ function panelLeer(req) {
     return c;
   });
   return { ok: true, profesores: profesores, horarios: db.horarios || [], pendientes: db.horarios_pendientes || [],
-           sustituciones: db.sustituciones || [] };
+           sustituciones: db.sustituciones || [], curso: cursoActual(db), cursosArchivados: db.cursos_archivados || [] };
 }
 
 /** Panel: cambia los permisos de un docente. Siempre debe quedar al menos un administrador del panel. */
@@ -1705,6 +1709,142 @@ function datosParaModulo(db, modulo) {
   return { ok: true, profesores: profesores, alumnos: alumnos, horarios: horarios };
 }
 
+// ------------------------------------------------------------------ Cambio de curso (Panel del centro)
+
+// El curso escolar vive en el servidor (antes solo en el navegador de quien lo cambiaba). Al cambiar de curso,
+// lo del curso que se cierra se guarda en un archivo aparte de la carpeta de datos (Curso_2026-2027.json),
+// que convivencia consulta en Analítica; el archivo principal no crece año tras año.
+
+/** Curso por defecto según la fecha: de septiembre a diciembre empieza ese año. */
+function cursoPorDefecto() {
+  var hoy = hoyTexto();
+  var y = Number(hoy.slice(0, 4)), m = Number(hoy.slice(5, 7));
+  var ini = m >= 9 ? y : y - 1;
+  return ini + '/' + (ini + 1);
+}
+
+function cursoActual(db) { return db.curso_actual || cursoPorDefecto(); }
+
+function nombreArchivoCurso(curso) { return 'Curso_' + String(curso).replace('/', '-') + '.json'; }
+
+/**
+ * Panel: cierra el curso actual y abre el nuevo. req = { nuevo: '2027/2028', confirmacion: '2027/2028',
+ * vaciarAlumnos: false, siguen: [correos de sustitutos que siguen el curso nuevo] }.
+ */
+function cambiarCurso(req) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(25000);
+  try {
+    var db = leerDb(true);
+    var s = sesionPanel(req, db);
+    var actual = cursoActual(db);
+    var nuevo = String(req.nuevo || '').trim();
+    var m = /^(\d{4})\/(\d{4})$/.exec(nuevo);
+    if (!m || Number(m[2]) !== Number(m[1]) + 1) fallo('DATOS', 'El curso nuevo debe tener la forma 2027/2028.');
+    if (Number(m[1]) <= Number(actual.slice(0, 4))) fallo('DATOS', 'El curso nuevo tiene que ser posterior al actual (' + actual + ').');
+    if (String(req.confirmacion || '').trim() !== nuevo) fallo('DATOS', 'Para confirmar, escriba exactamente el nombre del curso nuevo.');
+    var carpeta = DriveApp.getFolderById(CARPETA_ID);
+    var nombreArchivo = nombreArchivoCurso(actual);
+    if (carpeta.getFilesByName(nombreArchivo).hasNext()) fallo('DATOS', 'Ya existe el archivo ' + nombreArchivo + ': ese curso ya se cerró.');
+    var ahora = new Date().toISOString();
+
+    // 1. Copia de seguridad de todo antes de empezar (no se borra con las copias diarias)
+    carpetaCopias().createFile('ANTES_CAMBIO_CURSO_' + actual.replace('/', '-') + '_' + hoyTexto() + '.json',
+      JSON.stringify(db), MimeType.PLAIN_TEXT);
+
+    // 2. Archivo del curso que se cierra
+    var borradas = {};
+    (db.deleted_sanciones || []).forEach(function (id) { borradas[id] = true; });
+    var archivo = {
+      id_curso: actual, nombre: 'Curso Escolar ' + actual, fecha_cierre: ahora, cerrado_por: s.email,
+      alumnos_archivo: db.alumnos || [],
+      sanciones_archivo: (db.sanciones || []).filter(function (x) { return x && x.id_sancion && !borradas[x.id_sancion]; }),
+      compensaciones_archivo: db.compensaciones || [],
+      expedientes_archivo: db.expedientes_sancion || []
+    };
+    archivo.total_alumnos = archivo.alumnos_archivo.length;
+    archivo.total_sanciones = archivo.sanciones_archivo.length;
+    archivo.total_compensaciones = archivo.compensaciones_archivo.length;
+    var f = carpeta.createFile(nombreArchivo, JSON.stringify(archivo), MimeType.PLAIN_TEXT);
+
+    // 3. Convivencia: partes y compensaciones a cero; siguen los expedientes abiertos
+    var abiertos = (db.expedientes_sancion || []).filter(function (e) { return e && !e.completado; });
+    var conExpediente = {};
+    abiertos.forEach(function (e) { conExpediente[e.id_alumno] = true; });
+    db.sanciones = [];
+    db.compensaciones = [];
+    db.expedientes_sancion = abiertos;
+    db.deleted_sanciones = [];
+    db.deleted_expedientes = [];
+
+    // 4. Alumnado: se mantiene con 10 puntos (o se vacía, salvo quien tiene un expediente abierto)
+    var alumnos = (db.alumnos || []).filter(function (a) { return a && a.id_alumno && (!req.vaciarAlumnos || conExpediente[a.id_alumno]); });
+    db.alumnos = alumnos.map(function (a) {
+      a.puntos_actuales = 10;
+      a.historial_sanciones_count = 0;
+      if (a.estado !== 'BAJA') a.estado = 'ACTIVO';
+      return a;
+    });
+
+    // 5. Horarios nuevos cada curso
+    db.horarios = [];
+    db.horarios_pendientes = [];
+
+    // 6. Sustituciones: terminan todas; los sustitutos se dan de baja salvo los que siguen
+    var siguen = {};
+    (Array.isArray(req.siguen) ? req.siguen : []).forEach(function (e) { siguen[norm(e)] = true; });
+    var fin = 0;
+    (db.sustituciones || []).forEach(function (x) {
+      if (!x || x.estado !== 'ACTIVA') return;
+      x.estado = 'FINALIZADA';
+      x.hasta = hoyTexto();
+      fin++;
+      if (!siguen[norm(x.sustituto)]) darDeBajaPorSustitucion(db, x.sustituto);
+    });
+
+    // 7. Tutorías: se asignan de nuevo en el curso nuevo
+    (db.profesores || []).forEach(function (p) {
+      if (!p) return;
+      delete p.tutor_de_grupo;
+      delete p.tutoria_asignada_por;
+    });
+
+    // 8. Curso nuevo
+    db.cursos_archivados = db.cursos_archivados || [];
+    db.cursos_archivados.unshift({ id_curso: actual, archivo_id: f.getId(), archivo: nombreArchivo, fecha_cierre: ahora,
+      cerrado_por: s.email, total_alumnos: archivo.total_alumnos, total_sanciones: archivo.total_sanciones,
+      total_compensaciones: archivo.total_compensaciones });
+    db.curso_actual = nuevo;
+    db.fecha_cambio_curso = ahora;
+    db.audit_logs.unshift({ id_log: 'log-' + new Date().getTime() + '-' + Math.floor(Math.random() * 1e6),
+      timestamp: ahora, usuario_email: s.email, accion: 'ACTUALIZACION_SISTEMA', entidad: 'CursoEscolar/' + nuevo,
+      detalles: 'Cambio de curso: ' + actual + ' cerrado y archivado en ' + nombreArchivo + ' (' + archivo.total_alumnos + ' alumnos, ' +
+        archivo.total_sanciones + ' partes). Expedientes abiertos que siguen: ' + abiertos.length + '. Sustituciones terminadas: ' + fin +
+        (req.vaciarAlumnos ? '. Alumnado vaciado.' : '.'), hash_integridad: '' });
+    db.audit_logs = db.audit_logs.slice(0, 300);
+    escribirDb(db);
+    return { ok: true, curso: nuevo, archivado: actual, archivo: nombreArchivo, expedientesAbiertos: abiertos.length,
+             sustitucionesTerminadas: fin, alumnos: db.alumnos.length };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** Convivencia (Analítica, solo administradores): lo archivado de un curso cerrado. */
+function leerCursoArchivado(req) {
+  var db = leerDb();
+  var s = sesion(req.token, db);
+  if (!s.admin) fallo('PROHIBIDO', 'Solo la administración de convivencia consulta los cursos archivados.');
+  var meta = null;
+  (db.cursos_archivados || []).forEach(function (c) { if (c && c.id_curso === req.curso) meta = c; });
+  if (!meta) fallo('NO_ENCONTRADO', 'Ese curso no está archivado.');
+  var f = DriveApp.getFileById(meta.archivo_id);
+  var archivo = JSON.parse(f.getBlob().getDataAsString());
+  // Sin contraseñas ni nada de credenciales (el archivo no las lleva, pero por si acaso)
+  (archivo.alumnos_archivo || []).forEach(function (a) { delete a.password_hash; });
+  return { ok: true, curso: archivo };
+}
+
 // ------------------------------------------------------------------ Servidor único de la intranet
 
 // Los módulos (salidas, guardias) pueden vivir en este mismo proyecto de Apps Script, cada uno en su
@@ -1814,7 +1954,7 @@ function login(req) {
     cache.remove('FALLOS_' + email);
     // Los datos van en la misma respuesta: la app no tiene que hacer una segunda petición
     return { ok: true, token: crearSesion(email), usuario: perfilPublico(p), admin: esAdmin(p), primerAcceso: primerAcceso,
-             data: esAdmin(p) ? sinCredenciales(db) : vistaDocente(db, p) };
+             data: datosParaApp(db, p) };
   } finally {
     lock.releaseLock();
   }
@@ -1970,7 +2110,15 @@ function leer(req) {
   if (req.desde && db.timestamp && req.desde === db.timestamp) {
     return { ok: true, sinCambios: true, timestamp: db.timestamp };
   }
-  return { ok: true, admin: s.admin, usuario: perfilPublico(s.prof), data: s.admin ? sinCredenciales(db) : vistaDocente(db, s.prof) };
+  return { ok: true, admin: s.admin, usuario: perfilPublico(s.prof), data: datosParaApp(db, s.prof) };
+}
+
+/** Datos que recibe la app de convivencia (al entrar y en cada lectura), con el curso escolar del servidor. */
+function datosParaApp(db, prof) {
+  var data = esAdmin(prof) ? sinCredenciales(db) : vistaDocente(db, prof);
+  data.curso_actual = cursoActual(db);
+  if (!esAdmin(prof)) delete data.cursos_archivados;
+  return data;
 }
 
 // ------------------------------------------------------------------ Guardado
@@ -1988,7 +2136,13 @@ function guardar(req) {
   try {
     var db = leerDb(true);
     var s = sesion(req.token, db);
+    // Tras un cambio de curso, un dispositivo con los datos del curso anterior no puede guardar
+    // (volvería a subir los partes ya archivados): recarga y empieza con el curso nuevo
+    if (db.fecha_cambio_curso && String((req.data || {}).curso_actual || '') !== cursoActual(db)) {
+      fallo('CURSO_CAMBIADO', 'Ha empezado el curso ' + cursoActual(db) + '. Recargue la página para trabajar con el curso nuevo.');
+    }
     var entrada = asegurarListas(req.data || {});
+    delete entrada.curso_actual;
     var avisos = [];
     var resultado = s.admin ? fusionAdmin(db, entrada) : fusionDocente(db, entrada, s, avisos);
     escribirDb(resultado);
@@ -2001,7 +2155,8 @@ function guardar(req) {
 /** Jefatura/Convivencia: lo que envía es la referencia, sin perder lo que otros hayan guardado. */
 // Datos que solo gestiona el servidor: nunca se toman de lo que envía la app
 var CLAVES_SERVIDOR = ['credenciales_profesores', 'credenciales_v1_alternativas', 'reset_credenciales_emails',
-  'migracion_v2', 'saldos_antes_v2', 'horarios', 'permisos_intranet', 'horarios_pendientes', 'sustituciones'];
+  'migracion_v2', 'saldos_antes_v2', 'horarios', 'permisos_intranet', 'horarios_pendientes', 'sustituciones',
+  'curso_actual', 'cursos_archivados', 'fecha_cambio_curso'];
 
 /**
  * Lista de lo que la app dice haber cambiado (entrada.cambios). Si existe, de lo demás se conserva

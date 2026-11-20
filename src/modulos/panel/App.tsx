@@ -1,13 +1,14 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, CalendarClock, DatabaseBackup, GraduationCap, ShieldCheck, Users } from 'lucide-react';
+import { AlertTriangle, CalendarClock, CalendarRange, DatabaseBackup, GraduationCap, ShieldCheck, Users } from 'lucide-react';
 import { llamarApi, conHorarioEfectivo, type DocentePanel, type FilaHorario, type HorarioPendiente, type Sustitucion } from './api';
 import Profesorado from './components/Profesorado';
 import Horarios from './components/Horarios';
+import CursoEscolar, { type CursoArchivado } from './components/CursoEscolar';
 
 // Gestión de profesorado, alumnado y copias: usa las pantallas de convivencia (se cargan al abrirla)
 const GestionDatos = lazy(() => import('./components/GestionDatos'));
 
-type Pestana = 'profesorado' | 'permisos' | 'horarios' | 'alumnado' | 'copias';
+type Pestana = 'profesorado' | 'permisos' | 'horarios' | 'alumnado' | 'copias' | 'curso';
 
 export interface AvisoPanel { texto: string; error: boolean; id: number }
 
@@ -17,6 +18,8 @@ export default function App() {
   const [horarios, setHorarios] = useState<FilaHorario[]>([]);
   const [pendientes, setPendientes] = useState<HorarioPendiente[]>([]);
   const [sustituciones, setSustituciones] = useState<Sustitucion[]>([]);
+  const [curso, setCurso] = useState('');
+  const [archivados, setArchivados] = useState<CursoArchivado[]>([]);
   const [error, setError] = useState('');
   const [aviso, setAviso] = useState<AvisoPanel | null>(null);
 
@@ -36,6 +39,8 @@ export default function App() {
     setHorarios(r.horarios as FilaHorario[]);
     setPendientes((r.pendientes || []) as HorarioPendiente[]);
     setSustituciones((r.sustituciones || []) as Sustitucion[]);
+    setCurso(String(r.curso || ''));
+    setArchivados((r.cursosArchivados || []) as CursoArchivado[]);
   }, []);
 
   useEffect(() => { cargar(); }, [cargar]);
@@ -63,6 +68,7 @@ export default function App() {
             {boton('horarios', 'Horarios', CalendarClock)}
             {boton('alumnado', 'Alumnado', GraduationCap)}
             {boton('copias', 'Copias de seguridad', DatabaseBackup)}
+            {boton('curso', 'Curso escolar', CalendarRange)}
           </nav>
         </div>
       </header>
@@ -94,6 +100,8 @@ export default function App() {
           <div className="bg-white border border-red-200 rounded-2xl p-6 text-center text-sm text-red-700">{error}</div>
         ) : profesores === null ? (
           <div className="p-10 text-center text-slate-500">Cargando…</div>
+        ) : pestana === 'curso' ? (
+          <CursoEscolar curso={curso} archivados={archivados} profesores={profesores} sustituciones={sustituciones} avisar={avisar} alCambiar={cargar} />
         ) : pestana === 'permisos' ? (
           <Profesorado profesores={profesores} horarios={horarios} avisar={avisar} alCambiar={setProfesores} />
         ) : (

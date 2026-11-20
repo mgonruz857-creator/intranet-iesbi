@@ -53,13 +53,15 @@ La intranet copia código de las apps existentes, pero **no escribe en ellas**:
 - **Servidor central**: el de convivencia guarda también los datos comunes de la intranet: `horarios`,
   `horarios_pendientes` (páginas de Séneca sin docente), `sustituciones` (titular de baja → sustituto) y `permisos_intranet` (permiso de cada docente en cada módulo
   y quién administra el panel). Solo cambian con sus acciones (`guardarPermisos`, `guardarHorarios`,
-  `resolverHorarioPendiente`, `gestionarSustitucion`), nunca con `guardar`. Los demás servidores leen lo que necesitan con
+  `resolverHorarioPendiente`, `gestionarSustitucion`), nunca con `guardar`. También el curso escolar (`curso_actual`,
+  `cursos_archivados`), que solo cambia con `cambiarCurso` desde el panel (ver `docs/convivencia.md`). Los demás servidores leen lo que necesitan con
   `datosCentro` (petición firmada con `SECRETO_INTRANET`, sin teléfonos ni datos de familias). Ver `docs/convivencia.md`.
   Salidas lo usa si su script tiene la propiedad `URL_SERVIDOR_CENTRAL` (ver `docs/salidas.md`).
 - **Panel del centro** (`src/modulos/panel`): solo para administradores del panel (`perfilIntranet` → `permisos.panel`).
   Pestañas: Profesorado, Alumnado y Copias de seguridad (las pantallas de gestión de convivencia, `EtlImportView` con
   la prop `seccion`, mismo guardado; requieren además ser administrador de Convivencia), Permisos y Horarios
-  (lector del PDF de Séneca en `src/nucleo/seneca`). En Convivencia solo quedan los cursos escolares (`seccion="convivencia"`).
+  (lector del PDF de Séneca en `src/nucleo/seneca`) y Curso escolar (cambio de curso para toda la intranet).
+  En Convivencia solo queda un enlace al panel para el cambio de curso (`seccion="convivencia"`).
 - **Servidor único** (20/11/2026, `docs/servidor-unico.md`): salidas y guardias van también como archivos
   `Salidas.gs`/`Guardias.gs` dentro del proyecto del servidor central (generados con `servidores/unico/generar.mts`
   desde `servidores/<módulo>/Code.gs`, que siguen siendo la única fuente). La app les habla allí con

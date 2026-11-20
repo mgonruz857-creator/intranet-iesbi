@@ -150,7 +150,7 @@ export const Header: React.FC<HeaderProps> = ({
                     ? 'bg-sky-50 hover:bg-sky-100 text-sky-900 border border-sky-200/80 cursor-pointer shadow-2xs' 
                     : 'bg-slate-50 text-slate-600 border border-slate-200/60 cursor-default'
                 }`}
-                title={isAdmin ? "Gestionar cursos escolares y apertura de nuevo curso" : `Curso Escolar ${StorageService.getCursoActual()}`}
+                title={isAdmin ? "Cursos escolares (el cambio de curso se hace en el Panel del centro)" : `Curso Escolar ${StorageService.getCursoActual()}`}
               >
                 <Calendar className="w-3.5 h-3.5 text-sky-600" />
                 <span>Curso {StorageService.getCursoActual()}</span>
