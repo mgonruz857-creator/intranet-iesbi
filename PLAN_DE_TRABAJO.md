@@ -113,6 +113,8 @@ más adelante `proyectoIntranet/PRODUCCION/`). Siempre en Mi unidad, mismo propi
       los expedientes abiertos; alumnado a 10 puntos (opción de vaciarlo); se borran horarios y tutorías; terminan las
       sustituciones (los sustitutos no marcados se dan de baja). Guardias y salidas no cambian. Un dispositivo con el
       curso anterior no puede guardar (`CURSO_CAMBIADO`, se recarga). Pruebas en `pruebas/cambio_curso.test.mts`.
+- [x] Importación de Séneca con resumen previo y bajas de quien ya no figura (20/11, aprobado por Miguel Ángel);
+      el panel la recuerda al terminar el cambio de curso. Pruebas en `pruebas/convivencia/importar_seneca.test.mts`.
 - [ ] Pegar el Intranet.gs nuevo en API_Intranet_PRUEBAS y probar el cambio de curso (Miguel Ángel).
 
 Resumen de la propuesta:

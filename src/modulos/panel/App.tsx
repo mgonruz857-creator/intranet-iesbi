@@ -101,7 +101,7 @@ export default function App() {
         ) : profesores === null ? (
           <div className="p-10 text-center text-slate-500">Cargando…</div>
         ) : pestana === 'curso' ? (
-          <CursoEscolar curso={curso} archivados={archivados} profesores={profesores} sustituciones={sustituciones} avisar={avisar} alCambiar={cargar} />
+          <CursoEscolar curso={curso} archivados={archivados} profesores={profesores} sustituciones={sustituciones} avisar={avisar} alCambiar={cargar} irAAlumnado={() => setPestana('alumnado')} />
         ) : pestana === 'permisos' ? (
           <Profesorado profesores={profesores} horarios={horarios} avisar={avisar} alCambiar={setProfesores} />
         ) : (

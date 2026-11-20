@@ -64,6 +64,10 @@ Antes de tocar nada, **no restaurar ni borrar sin que Miguel Ángel lo decida** 
 - La app manda `curso_actual` al guardar; si no coincide tras un cambio de curso, el servidor responde
   `CURSO_CAMBIADO` y la app vacía su caché y se recarga (así un dispositivo atrasado no resucita partes archivados).
 - Los partes de los expedientes abiertos se archivan con el curso; el expediente sigue abierto en el curso nuevo.
+- Después del cambio se importa el archivo de alumnado de Séneca del curso nuevo (Panel → Alumnado). Antes de guardar
+  se ve un resumen (`previsualizarImportacionAlumnos`): nuevos, cambios de grupo y quien ya no figura, marcado para darse
+  de baja (motivo «No figura en Séneca (curso …)»). Quien tiene un expediente abierto sale aparte sin marcar; si falta
+  más de la mitad del alumnado activo (archivo parcial) no se marca a nadie.
 - Convivencia ya no tiene su propio botón de nuevo curso (los cursos guardados antes en el navegador se siguen viendo).
 
 ## Reglas de la app que hay que respetar

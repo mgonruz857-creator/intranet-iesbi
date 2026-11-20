@@ -14,6 +14,7 @@ interface Props {
   sustituciones: Sustitucion[];
   avisar: (texto: string, error?: boolean) => void;
   alCambiar: () => void;
+  irAAlumnado: () => void;
 }
 
 function siguiente(curso: string): string {
@@ -22,13 +23,14 @@ function siguiente(curso: string): string {
 }
 
 /** Cambio de curso escolar para toda la intranet (solo administradores del panel). */
-export default function CursoEscolar({ curso, archivados, profesores, sustituciones, avisar, alCambiar }: Props) {
+export default function CursoEscolar({ curso, archivados, profesores, sustituciones, avisar, alCambiar, irAAlumnado }: Props) {
   const [abierto, setAbierto] = useState(false);
   const [nuevo, setNuevo] = useState(() => siguiente(curso));
   const [confirmacion, setConfirmacion] = useState('');
   const [vaciarAlumnos, setVaciarAlumnos] = useState(false);
   const [siguen, setSiguen] = useState<Record<string, boolean>>({});
   const [enviando, setEnviando] = useState(false);
+  const [recienCambiado, setRecienCambiado] = useState('');
 
   const nombre = useMemo(() => {
     const m = new Map(profesores.map((p) => [p.email.toLowerCase(), nombreCompleto(p)]));
@@ -49,6 +51,7 @@ export default function CursoEscolar({ curso, archivados, profesores, sustitucio
     avisar(`Curso ${r.curso} abierto. El curso ${r.archivado} queda archivado en ${r.archivo}.`);
     setAbierto(false);
     setConfirmacion('');
+    setRecienCambiado(r.curso);
     alCambiar();
   }
 
@@ -70,6 +73,19 @@ export default function CursoEscolar({ curso, archivados, profesores, sustitucio
         </div>
       </section>
 
+      {recienCambiado && (
+        <section className="bg-sky-50 border-2 border-sky-300 rounded-2xl p-5 space-y-2" role="note">
+          <h2 className="font-bold text-sky-950">Siguiente paso: el alumnado del curso {recienCambiado}</h2>
+          <p className="text-sm text-slate-700">
+            Importe el archivo de alumnado de Séneca del curso nuevo. Cada alumno pasa solo a su grupo nuevo, se dan de alta
+            los nuevos y se le propone dar de baja a quien ya no está (terminó o se trasladó), para que lo revise antes de guardar.
+          </p>
+          <button onClick={irAAlumnado} className="px-4 py-2 rounded-xl bg-sky-700 text-white text-sm font-semibold hover:bg-sky-800">
+            Ir a Alumnado e importar de Séneca
+          </button>
+        </section>
+      )}
+
       {abierto && (
         <section className="bg-white border-2 border-amber-300 rounded-2xl p-5 space-y-4">
           <h2 className="font-bold flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-amber-600" /> Cerrar el curso {curso} y abrir uno nuevo</h2>
@@ -77,7 +93,7 @@ export default function CursoEscolar({ curso, archivados, profesores, sustitucio
             <li>Antes de nada se hace una <strong>copia de seguridad</strong> completa.</li>
             <li>Alumnado, partes, compensaciones y expedientes del curso {curso} se guardan en un <strong>archivo aparte</strong>, que se consulta en Convivencia → Analítica.</li>
             <li>Partes y compensaciones vuelven a cero. Los <strong>expedientes abiertos</strong> siguen en el curso nuevo.</li>
-            <li>El alumnado se mantiene con 10 puntos (después se actualizan los grupos con el archivo de Séneca del curso nuevo).</li>
+            <li>El alumnado se mantiene con 10 puntos. Después se importa el archivo de Séneca del curso nuevo: cambia cada alumno de grupo y propone dar de baja a quien ya no está.</li>
             <li>Se borran los <strong>horarios</strong> (se suben los nuevos desde el PDF de Séneca) y se quitan todas las <strong>tutorías</strong>.</li>
             <li>Terminan las <strong>sustituciones</strong>: los titulares vuelven a tener acceso.</li>
             <li>Profesorado y permisos se mantienen. Guardias y salidas no cambian.</li>

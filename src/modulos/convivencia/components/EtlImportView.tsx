@@ -38,6 +38,7 @@ import { Alumno, Profesor, AuditLog, LISTA_GRUPOS_OFICIALES } from '../types/con
 import { StorageService, normalizarNombreComparacion } from '../services/storageService';
 import { AuthService } from '../services/authService';
 import { GoogleDriveSyncService } from '../services/googleDriveSyncService';
+import ResumenImportacionSeneca from './ResumenImportacionSeneca';
 import { 
   parsearArchivoODSoExcel, 
   parsearProfesoresODSoExcel,
@@ -90,8 +91,23 @@ export const EtlImportView: React.FC<EtlImportViewProps> = ({
     totalProcessed?: number;
     nuevos?: number;
     actualizados?: number;
+    bajas?: number;
     errores?: string[];
   } | null>(null);
+
+  // Vista previa del archivo de Séneca: nuevos, cambios de grupo y bajas de quien ya no figura
+  const vistaPreviaSeneca = useMemo(
+    () => (activeImportTab === 'alumnos' && odsLoadedRows && odsLoadedRows.length > 0 ? StorageService.previsualizarImportacionAlumnos(odsLoadedRows) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [odsLoadedRows, activeImportTab, importStatus]
+  );
+  const [bajasMarcadas, setBajasMarcadas] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (!vistaPreviaSeneca) { setBajasMarcadas(new Set()); return; }
+    const parcial = vistaPreviaSeneca.activos > 0 && vistaPreviaSeneca.faltan.length > vistaPreviaSeneca.activos / 2;
+    const abiertos = new Set(vistaPreviaSeneca.conExpedienteAbierto);
+    setBajasMarcadas(new Set(parcial ? [] : vistaPreviaSeneca.faltan.filter((a) => !abiertos.has(a.id_alumno)).map((a) => a.id_alumno)));
+  }, [vistaPreviaSeneca]);
 
   const [isBackingUp, setIsBackingUp] = useState(false);
   const [backupMessage, setBackupMessage] = useState<string | null>(null);
@@ -273,12 +289,16 @@ El Amrani Youssef,4º ESO D`;
       if (activeImportTab === 'alumnos') {
         if (odsLoadedRows && odsLoadedRows.length > 0) {
           // Importar directo desde filas ODS/Excel (2 columnas: Apellidos Nombre y Curso)
-          const result = StorageService.importarAlumnosDesdeFilas(odsLoadedRows, currentUser.email);
+          const result = StorageService.importarAlumnosDesdeFilas(odsLoadedRows, currentUser.email, {
+            ids: [...bajasMarcadas],
+            motivo: `No figura en Séneca (curso ${StorageService.getCursoActual()})`,
+          });
           setImportStatus({
             success: true,
             totalProcessed: result.totalProcessed,
             nuevos: result.nuevos,
             actualizados: result.actualizados,
+            bajas: result.bajas,
             errores: result.errores,
           });
         } else if (csvContent.trim()) {
@@ -2538,6 +2558,9 @@ El Amrani Youssef,4º ESO D`;
                   Mostrando primeros 15 alumnos de {odsLoadedRows.length}...
                 </p>
               )}
+              {vistaPreviaSeneca && !importStatus?.success && (
+                <ResumenImportacionSeneca vista={vistaPreviaSeneca} marcados={bajasMarcadas} setMarcados={setBajasMarcadas} />
+              )}
             </div>
           )}
 
@@ -2659,7 +2682,7 @@ El Amrani Youssef,4º ESO D`;
               </div>
 
               {importStatus.success && (
-                <div className="grid grid-cols-3 gap-2 py-2">
+                <div className={`grid gap-2 py-2 ${importStatus.bajas ? 'grid-cols-4' : 'grid-cols-3'}`}>
                   <div className="bg-white/80 p-2 rounded-xl border border-sky-200 text-center">
                     <div className="text-[10px] text-slate-500 uppercase font-bold">Procesados</div>
                     <div className="text-base font-bold text-slate-900">{importStatus.totalProcessed}</div>
@@ -2672,6 +2695,12 @@ El Amrani Youssef,4º ESO D`;
                     <div className="text-[10px] text-slate-500 uppercase font-bold">Actualizados</div>
                     <div className="text-base font-bold text-slate-700">{importStatus.actualizados}</div>
                   </div>
+                  {!!importStatus.bajas && (
+                    <div className="bg-white/80 p-2 rounded-xl border border-sky-200 text-center">
+                      <div className="text-[10px] text-slate-500 uppercase font-bold">Dados de baja</div>
+                      <div className="text-base font-bold text-rose-700">{importStatus.bajas}</div>
+                    </div>
+                  )}
                 </div>
               )}
 

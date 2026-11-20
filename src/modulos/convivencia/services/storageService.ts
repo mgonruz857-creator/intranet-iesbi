@@ -2367,15 +2367,14 @@ export class StorageService {
    * Importa alumnos procesados desde un archivo ODS o Excel (2 columnas: Apellidos Nombre y Curso)
    * Aplica unificación estricta por Nombre y Apellidos para impedir duplicados en el censo.
    */
-  static importarAlumnosDesdeFilas(
+  /**
+   * Empareja las filas del archivo de Séneca con el alumnado (por NIE o por nombre) y las aplica sobre
+   * `currentAlumnos` (que modifica). No guarda nada: lo usan la vista previa (sobre una copia) y la importación.
+   */
+  private static aplicarFilasAlumnado(
     filas: Array<{ nombre: string; apellidos: string; grupo: GrupoEducativo; nie?: string }>,
-    usuarioEmail: string
-  ): { totalProcessed: number; nuevos: number; actualizados: number; errores: string[] } {
-    if (!filas || filas.length === 0) {
-      throw new Error('No se encontraron registros de alumnos para importar.');
-    }
-
-    const currentAlumnos = [...this.getAlumnos()];
+    currentAlumnos: Alumno[]
+  ) {
     const alumnoMapByNie = new Map<string, Alumno>();
     const alumnoMapByCanonical = new Map<string, Alumno>();
     const alumnoMapByTokens = new Map<string, Alumno>();
@@ -2396,6 +2395,10 @@ export class StorageService {
     let nuevos = 0;
     let actualizados = 0;
     const errores: string[] = [];
+    const tocados = new Set<string>();
+    const nuevosAlumnos: Alumno[] = [];
+    const cambianGrupo: Array<{ alumno: Alumno; de: string; a: string }> = [];
+    const vuelven: Alumno[] = [];
     let sinNieCounter = 1;
 
     for (let i = 0; i < filas.length; i++) {
@@ -2438,6 +2441,8 @@ export class StorageService {
       }
 
       if (existingAlumno) {
+        const grupoAnterior = existingAlumno.grupo;
+        const estabaDeBaja = existingAlumno.estado === 'BAJA';
         existingAlumno.nombre = nombre;
         existingAlumno.apellidos = apellidos;
         if (grupo) existingAlumno.grupo = grupo;
@@ -2448,8 +2453,10 @@ export class StorageService {
           existingAlumno.nie = finalNie;
         }
 
+        if (grupoAnterior !== existingAlumno.grupo) cambianGrupo.push({ alumno: { ...existingAlumno }, de: grupoAnterior, a: existingAlumno.grupo });
+        if (estabaDeBaja) vuelven.push({ ...existingAlumno });
         indexAlumno(existingAlumno);
-        this.addPendingSyncAlumnoId(existingAlumno.id_alumno);
+        tocados.add(existingAlumno.id_alumno);
         actualizados++;
       } else {
         const newStudent: Alumno = {
@@ -2466,10 +2473,59 @@ export class StorageService {
 
         currentAlumnos.push(newStudent);
         indexAlumno(newStudent);
-        this.addPendingSyncAlumnoId(newStudent.id_alumno);
+        tocados.add(newStudent.id_alumno);
+        nuevosAlumnos.push(newStudent);
         nuevos++;
       }
     }
+
+    // Quien estaba activo y no figura en el archivo (terminó, se trasladó…)
+    const faltan = currentAlumnos.filter((a) => a.estado !== 'BAJA' && !tocados.has(a.id_alumno));
+    return { nuevos, actualizados, errores, tocados, nuevosAlumnos, cambianGrupo, vuelven, faltan };
+  }
+
+  /**
+   * Vista previa de la importación del archivo de Séneca, sin guardar nada: nuevos, cambios de grupo y
+   * alumnado activo que ya no figura en el archivo (con aviso para quien tiene un expediente abierto).
+   */
+  static previsualizarImportacionAlumnos(
+    filas: Array<{ nombre: string; apellidos: string; grupo: GrupoEducativo; nie?: string }>
+  ): {
+    nuevos: Alumno[]; cambianGrupo: Array<{ alumno: Alumno; de: string; a: string }>; vuelven: Alumno[];
+    faltan: Alumno[]; conExpedienteAbierto: string[]; actualizados: number; errores: string[]; activos: number;
+  } {
+    const actuales = this.getAlumnos();
+    const copia: Alumno[] = JSON.parse(JSON.stringify(actuales));
+    const r = this.aplicarFilasAlumnado(filas, copia);
+    const abiertos = new Set(this.getExpedientes().filter((e) => !e.completado).map((e) => e.id_alumno));
+    return {
+      nuevos: r.nuevosAlumnos, cambianGrupo: r.cambianGrupo, vuelven: r.vuelven, faltan: r.faltan,
+      conExpedienteAbierto: r.faltan.filter((a) => abiertos.has(a.id_alumno)).map((a) => a.id_alumno),
+      actualizados: r.actualizados, errores: r.errores, activos: actuales.filter((a) => a.estado !== 'BAJA').length,
+    };
+  }
+
+  static importarAlumnosDesdeFilas(
+    filas: Array<{ nombre: string; apellidos: string; grupo: GrupoEducativo; nie?: string }>,
+    usuarioEmail: string,
+    bajas: { ids: string[]; motivo: string } = { ids: [], motivo: '' }
+  ): { totalProcessed: number; nuevos: number; actualizados: number; errores: string[]; bajas: number } {
+    if (!filas || filas.length === 0) {
+      throw new Error('No se encontraron registros de alumnos para importar.');
+    }
+
+    const currentAlumnos = [...this.getAlumnos()];
+    const { nuevos, actualizados, errores, tocados, faltan } = this.aplicarFilasAlumnado(filas, currentAlumnos);
+    tocados.forEach((id) => this.addPendingSyncAlumnoId(id));
+
+    // Bajas de quien ya no figura en Séneca (solo las que se han dejado marcadas)
+    const aDarDeBaja = new Set(bajas.ids.filter((id) => faltan.some((a) => a.id_alumno === id)));
+    const hoy = new Date().toISOString().split('T')[0];
+    currentAlumnos.forEach((a, i) => {
+      if (!aDarDeBaja.has(a.id_alumno)) return;
+      currentAlumnos[i] = { ...a, estado: 'BAJA', motivo_baja: bajas.motivo || 'No figura en Séneca', fecha_baja: hoy };
+      this.addPendingSyncAlumnoId(a.id_alumno);
+    });
 
     this.saveAlumnos(currentAlumnos);
     // Garantizar que no quede ningún duplicado residual
@@ -2479,7 +2535,8 @@ export class StorageService {
       usuarioEmail,
       'IMPORTACION_MASIVA',
       'ETL/Alumnos_ODS',
-      `Importación ODS/Hoja (2 columnas) completada: ${nuevos} nuevos insertados (10 pts iniciales), ${actualizados} actualizados/unificados.`
+      `Importación ODS/Hoja (2 columnas) completada: ${nuevos} nuevos insertados (10 pts iniciales), ${actualizados} actualizados/unificados` +
+        (aDarDeBaja.size ? `, ${aDarDeBaja.size} dados de baja por no figurar en el archivo (${bajas.motivo}).` : '.')
     );
 
     return {
@@ -2487,6 +2544,7 @@ export class StorageService {
       nuevos,
       actualizados,
       errores,
+      bajas: aDarDeBaja.size,
     };
   }
 
