@@ -8,7 +8,7 @@ import { ARCHIVO_DB_DRIVE } from '../../src/modulos/convivencia/config/entorno.t
  * fechas: fecha de modificación de cada archivo (cambia con setContent o con tocarExterno()).
  * Se puede compartir "drive" entre dos servidores (p. ej. el v1 y el v2 a la vez).
  */
-export function crearServidor(codigo: string, archivoInicial?: any, opciones?: { drive?: any; esperaLock?: () => void; extra?: Record<string, any> }) {
+export function crearServidor(codigo: string, archivoInicial?: any, opciones?: { drive?: any; esperaLock?: () => void; extra?: Record<string, any> | ((ctx: any) => Record<string, any>) }) {
   const drive = opciones?.drive || { archivos: {} as Record<string, string>, fechas: {} as Record<string, number>, reloj: 1 };
   const archivos = drive.archivos;
   if (archivoInicial) { archivos['DB'] = JSON.stringify(archivoInicial); drive.fechas['DB'] = drive.reloj++; }
@@ -38,9 +38,9 @@ export function crearServidor(codigo: string, archivoInicial?: any, opciones?: {
   let llamadasCifrado = 0;
   let lockOcupado = false;
   const ctx: any = {
-    JSON, Math, Date, String, Array, Object, parseInt, Number, Error, isNaN,
+    JSON, Math, Date, String, Array, Object, parseInt, Number, Error, isNaN, console: { error() {}, log() {} },
     ContentService: { MimeType: { JSON: 'json' }, createTextOutput: (t: string) => ({ setMimeType: () => ({ texto: t }) }) },
-    CacheService: { getScriptCache: () => ({ get: (k: string) => cache.has(k) ? cache.get(k)! : null, put: (k: string, v: string) => { cache.set(k, v) }, remove: (k: string) => { cache.delete(k) },
+    CacheService: { getScriptCache: () => ({ get: (k: string) => cache.has(k) ? cache.get(k)! : null, put: (k: string, v: string) => { cache.set(k, v) }, remove: (k: string) => { cache.delete(k) }, removeAll: (ks: string[]) => { ks.forEach(k => cache.delete(k)) },
       getAll: (ks: string[]) => { const r: any = {}; ks.forEach(k => { if (cache.has(k)) r[k] = cache.get(k) }); return r; }, putAll: (o: any) => { for (const k in o) cache.set(k, o[k]) } }) },
     PropertiesService: { getScriptProperties: () => ({ getProperty: (k: string) => props.get(k) ?? null, setProperty: (k: string, v: string) => { props.set(k, v) }, deleteProperty: (k: string) => { props.delete(k) } }) },
     LockService: { getScriptLock: () => ({
@@ -57,7 +57,8 @@ export function crearServidor(codigo: string, archivoInicial?: any, opciones?: {
       getFolderById: () => carpeta('') },
     Logger: { log: (m: any) => { (drive.logs = drive.logs || []).push(String(m)); } },
   };
-  Object.assign(ctx, opciones?.extra || {});
+  const extra = opciones?.extra;
+  Object.assign(ctx, typeof extra === 'function' ? extra(ctx) : extra || {});
   vm.createContext(ctx); vm.runInContext(codigo, ctx);
   const post = (obj: any) => JSON.parse(ctx.doPost({ postData: { contents: JSON.stringify(obj) } }).texto);
   /** Simula que alguien (otra versión de la app) modifica el archivo por fuera de este servidor. */

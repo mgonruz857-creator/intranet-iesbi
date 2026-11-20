@@ -821,6 +821,16 @@ function doPost(e) {
   } catch (err) {
     return salida({ ok: false, error: 'Petición no válida.' });
   }
+  // Servidor único: peticiones de los módulos que viven en este mismo proyecto (salidas, guardias)
+  if (req.modulo) {
+    try {
+      return salida(atenderModulo(req));
+    } catch (err) {
+      console.error(err && err.stack || err);
+      return salida({ ok: false, codigo: (err && err.codigo) || 'ERROR_INTERNO',
+        mensaje: (err && err.codigo) ? err.message : 'Error inesperado del servidor: ' + ((err && err.message) || err) });
+    }
+  }
   try {
     asegurarMigracion();
     switch (req.accion) {
@@ -1043,6 +1053,7 @@ function escribirDb(db) {
   } else f = DriveApp.getFolderById(CARPETA_ID).createFile(ARCHIVO_DB, texto, MimeType.PLAIN_TEXT);
   cacheGuardar(texto);
   anotarFechaCache(f);
+  limpiarCachesModulos();
 }
 
 /**
@@ -1676,18 +1687,75 @@ function datosCentro(req) {
   if (!datos || firma !== pet.firma) fallo('NO_AUTH', 'Petición no válida.');
   var d = JSON.parse(datos);
   if (MODULOS_INTRANET.indexOf(d.modulo) < 0 || !(d.exp > new Date().getTime())) fallo('NO_AUTH', 'Petición caducada o no válida.');
-  var db = leerDb();
+  return datosParaModulo(leerDb(), d.modulo);
+}
+
+/** Lo que recibe cada módulo del centro: sin teléfonos ni datos de familias. */
+function datosParaModulo(db, modulo) {
   var profesores = (db.profesores || []).filter(function (p) { return p && p.email && p.estado !== 'INACTIVO' && !sustitucionDeTitular(db, p.email); })
     .map(function (p) {
       return { email: norm(p.email), nombre: p.nombre || '', apellidos: p.apellidos || '',
-               tutor_de_grupo: p.tutor_de_grupo || '', permiso: permisosDe(db, p)[d.modulo] };
+               tutor_de_grupo: p.tutor_de_grupo || '', permiso: permisosDe(db, p)[modulo] };
     });
   var alumnos = (db.alumnos || []).filter(function (a) { return a && a.id_alumno && a.estado !== 'BAJA'; })
     .map(function (a) { return { id_alumno: a.id_alumno, nombre: a.nombre || '', apellidos: a.apellidos || '', grupo: a.grupo || '' }; });
   var horarios = horariosEfectivos(db);
   // Salidas no necesita las horas de guardia (no son clases con grupo)
-  if (d.modulo === 'salidas') horarios = horarios.filter(function (f) { return f && !/^GUARDIA/.test(String(f[4] || '')); });
+  if (modulo === 'salidas') horarios = horarios.filter(function (f) { return f && !/^GUARDIA/.test(String(f[4] || '')); });
   return { ok: true, profesores: profesores, alumnos: alumnos, horarios: horarios };
+}
+
+// ------------------------------------------------------------------ Servidor único de la intranet
+
+// Los módulos (salidas, guardias) pueden vivir en este mismo proyecto de Apps Script, cada uno en su
+// archivo (Salidas.gs, Guardias.gs) y con su propia hoja de cálculo. La app les habla aquí con
+// { modulo, accion, token }: el token es la sesión de la intranet, sin vales ni otras contraseñas,
+// y leen los datos del centro directamente (sin pedirlos por la red).
+
+function modulosInstalados() {
+  var m = {};
+  if (typeof MODULO_SALIDAS !== 'undefined') m.salidas = MODULO_SALIDAS;
+  if (typeof MODULO_GUARDIAS !== 'undefined') m.guardias = MODULO_GUARDIAS;
+  return m;
+}
+
+function atenderModulo(req) {
+  var m = modulosInstalados()[String(req.modulo || '')];
+  if (!m) return { ok: false, codigo: 'SIN_MODULO', mensaje: 'El módulo ' + req.modulo + ' no está instalado en el servidor de la intranet.' };
+  if (req.accion === 'logout') { cerrarSesion(req.token); return { ok: true }; }
+  return m.atender(req, sesionModulo(req.token));
+}
+
+/**
+ * Sesión de la intranet para los módulos, sin leer la base de datos: cada módulo comprueba después que
+ * el docente sigue en su profesorado activo (sus datos del centro ya excluyen bajas y titulares sustituidos).
+ */
+function sesionModulo(token) {
+  if (!token) fallo('NO_AUTH', 'Debe iniciar sesión.');
+  var cache = CacheService.getScriptCache();
+  var valor = cache.get('SES_' + token);
+  if (!valor) fallo('NO_AUTH', 'La sesión ha caducado. Vuelva a iniciar sesión.');
+  var partes = String(valor).split('|');
+  if (partes.length > 1 && partes[1] !== generacionSesiones(partes[0])) {
+    cerrarSesion(token);
+    fallo('NO_AUTH', 'Su contraseña se ha restablecido. Vuelva a iniciar sesión.');
+  }
+  cache.put('SES_' + token, valor, DURACION_SESION_SEG);
+  return norm(partes[0]);
+}
+
+/** Datos del centro para un módulo instalado en este mismo proyecto. */
+function datosCentroInterno(modulo) {
+  if (MODULOS_INTRANET.indexOf(modulo) < 0) fallo('DESTINO', 'Módulo desconocido.');
+  return datosParaModulo(leerDb(), modulo);
+}
+
+/** Tras cada guardado, los módulos vuelven a leer los datos del centro (bajas, permisos, horarios al momento). */
+function limpiarCachesModulos() {
+  var m = modulosInstalados();
+  for (var k in m) {
+    try { m[k].limpiarCacheCentral(); } catch (e) { console.error(e); }
+  }
 }
 
 // ------------------------------------------------------------------ Acciones

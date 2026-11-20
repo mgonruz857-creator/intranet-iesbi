@@ -4,10 +4,10 @@ import Dia from './components/Dia';
 import Ausencias from './components/Ausencias';
 import Recuento from './components/Recuento';
 import MiHorario from './components/MiHorario';
-import { EVENTO_SESION_CADUCADA, guardarToken, llamarApi, tokenGuardado } from './api';
+import { EVENTO_SESION_CADUCADA, guardarToken, llamarApi, tokenGuardado, usarServidorUnico } from './api';
 import { ES_ENTORNO_PRUEBAS } from './config/entorno';
 import type { UsuarioGuardias } from './tipos';
-import { pedirVale, cerrarSesionIntranet } from '../../nucleo/accesoUnico';
+import { entrarServidorUnico, pedirVale, cerrarSesionIntranet } from '../../nucleo/accesoUnico';
 
 type Vista = 'dia' | 'ausencias' | 'horario' | 'recuento';
 const CLAVE_USUARIO = 'guardias_usuario';
@@ -49,6 +49,23 @@ export default function App() {
     if (!entrando) return;
     let vigente = true;
     (async () => {
+      // Primero, el servidor único de la intranet (una sola llamada); si aún no lleva guardias, su servidor propio
+      const u = await entrarServidorUnico<UsuarioGuardias>('guardias');
+      if (!vigente) return;
+      if (!u.noDisponible) {
+        usarServidorUnico(u.ok);
+        if (u.ok && u.token && u.usuario) {
+          guardarToken(u.token);
+          try { sessionStorage.setItem(CLAVE_USUARIO, JSON.stringify(u.usuario)); } catch { /* nada */ }
+          setUsuario(u.usuario);
+          setError('');
+        } else {
+          setError(u.mensaje || 'No se ha podido entrar en Guardias.');
+        }
+        setEntrando(false);
+        return;
+      }
+      usarServidorUnico(false);
       const v = await pedirVale('guardias');
       if (!vigente) return;
       if (!v.ok) { setError(v.mensaje || 'No se ha podido entrar con la sesión de la intranet.'); setEntrando(false); return; }

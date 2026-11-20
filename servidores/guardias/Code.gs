@@ -24,11 +24,16 @@
  * El motivo de la ausencia solo lo ven el propio docente y quien tiene permiso JEFATURA.
  *
  * Funciones para ejecutar desde el editor: configurarHoja, probarServidorCentral, limpiarCache.
+ *
+ * Servidor único de la intranet (desde la versión 1.2.0): este mismo código puede ir como archivo
+ * Guardias.gs dentro del proyecto del servidor central (lo prepara scripts/generarServidorUnico.mts).
+ * Entonces la sesión es la de la intranet, los datos del centro se leen sin pasar por la red y la hoja
+ * se abre con la propiedad ID_HOJA_GUARDIAS. Ver docs/servidor-unico.md.
  */
 
 // ───────────────────────── Configuración ─────────────────────────
 
-var VERSION = '1.1.0';
+var VERSION = '1.2.0';
 var ZONA = 'Europe/Madrid';
 var DOMINIO = '@g.educaand.es';
 var DURACION_SESION_SEG = 21600;    // 6 horas (máximo de CacheService), se renueva con el uso
@@ -64,7 +69,8 @@ var MENSAJES = {
   'ERROR_NO_ES_DE_GUARDIA': 'Solo puede coger una guardia el docente que está de guardia a esa hora.',
   'ERROR_YA_ASIGNADA': 'Esa guardia ya está asignada.',
   'ERROR_OCUPADO': 'El sistema está atendiendo otras peticiones. Inténtelo de nuevo en unos segundos.',
-  'ERROR_ACCION': 'Acción desconocida.'
+  'ERROR_ACCION': 'Acción desconocida.',
+  'ERROR_CONFIG': 'El servidor no está configurado del todo.'
 };
 
 // ───────────────────────── Entrada web ─────────────────────────
@@ -83,13 +89,21 @@ function doPost(e) {
   return salida_(atender_(req, new Date()));
 }
 
-function atender_(req, ahora) {
+function atender_(req, ahora, emailUnico) {
   try {
-    switch (req.accion) {
-      case 'entrarConVale': return entrarConVale_(req);
-      case 'logout': cerrarSesion_(req.token); return { ok: true };
+    var u;
+    if (emailUnico !== undefined) {
+      // Servidor único: el servidor central ya ha comprobado la sesión de la intranet
+      u = profesorado_()[norm_(emailUnico)];
+      if (!u) error_('401_UNAUTHORIZED');
+      if (req.accion === 'entrarUnico') return { ok: true, token: req.token, usuario: perfilPublico_(u) };
+    } else {
+      switch (req.accion) {
+        case 'entrarConVale': return entrarConVale_(req);
+        case 'logout': cerrarSesion_(req.token); return { ok: true };
+      }
+      u = sesion_(req.token);
     }
-    var u = sesion_(req.token);
     switch (req.accion) {
       case 'inicio': return { ok: true, usuario: perfilPublico_(u), hoy: fechaTexto_(ahora), version: VERSION };
       case 'misClases': return misClases_(u, req);
@@ -172,6 +186,9 @@ function exigirJefatura_(u) { if (!u.jefatura) error_('ERROR_SIN_PERMISO'); }
 
 // ───────────────────────── Datos del servidor central ─────────────────────────
 
+/** true si este código va dentro del servidor central (servidor único de la intranet). */
+function servidorUnico_() { return typeof datosCentroInterno === 'function'; }
+
 function urlCentral_() {
   return String(PropertiesService.getScriptProperties().getProperty('URL_SERVIDOR_CENTRAL') || '').trim();
 }
@@ -199,6 +216,7 @@ function central_() {
 }
 
 function pedirCentral_() {
+  if (servidorUnico_()) return convertirCentral_(datosCentroInterno('guardias'));
   var url = urlCentral_();
   if (!url) error_('ERROR_CENTRAL', 'Falta la propiedad URL_SERVIDOR_CENTRAL en el servidor de guardias.');
   var secreto = PropertiesService.getScriptProperties().getProperty('SECRETO_INTRANET');
@@ -217,6 +235,11 @@ function pedirCentral_() {
     error_('ERROR_CENTRAL');
   }
   if (!r || !r.ok) error_('ERROR_CENTRAL', MENSAJES.ERROR_CENTRAL + ' Respuesta: ' + ((r && (r.error || r.mensaje)) || 'vacía'));
+  return convertirCentral_(r);
+}
+
+/** Pasa los datos del centro al formato que usa este servidor. */
+function convertirCentral_(r) {
   var profesorado = {}, horario = {};
   (r.profesores || []).forEach(function (p) {
     var email = norm_(p.email);
@@ -533,7 +556,7 @@ function carpetaTareas_() {
   var props = PropertiesService.getScriptProperties();
   var id = props.getProperty('CARPETA_TAREAS_ID');
   if (id) { try { return DriveApp.getFolderById(id); } catch (e) { /* se vuelve a crear */ } }
-  var padre = DriveApp.getFileById(SpreadsheetApp.getActive().getId()).getParents();
+  var padre = DriveApp.getFileById(libro_().getId()).getParents();
   var base = padre.hasNext() ? padre.next() : DriveApp.getRootFolder();
   var existentes = base.getFoldersByName(CARPETA_TAREAS);
   var carpeta = existentes.hasNext() ? existentes.next() : base.createFolder(CARPETA_TAREAS);
@@ -561,8 +584,22 @@ function descargarTarea_(u, req) {
 
 // ───────────────────────── Hoja ─────────────────────────
 
+/** La hoja de guardias: la del propio script o, en el servidor único, la de la propiedad ID_HOJA_GUARDIAS. */
+var LIBRO_ = null;
+function libro_() {
+  if (LIBRO_) return LIBRO_;
+  if (servidorUnico_()) {
+    var id = String(PropertiesService.getScriptProperties().getProperty('ID_HOJA_GUARDIAS') || '').trim();
+    if (!id) error_('ERROR_CONFIG', 'Falta la propiedad ID_HOJA_GUARDIAS en el servidor de la intranet.');
+    LIBRO_ = SpreadsheetApp.openById(id);
+  } else {
+    LIBRO_ = SpreadsheetApp.getActive();
+  }
+  return LIBRO_;
+}
+
 function hoja_(nombre) {
-  var libro = SpreadsheetApp.getActive();
+  var libro = libro_();
   var h = libro.getSheetByName(nombre);
   if (!h) {
     h = libro.insertSheet(nombre);
@@ -600,7 +637,7 @@ function indice_(filas, col, valor) {
 
 function configurarHoja() {
   Object.keys(CABECERAS).forEach(function (n) { hoja_(n); });
-  SpreadsheetApp.getActive().setSpreadsheetTimeZone(ZONA);
+  libro_().setSpreadsheetTimeZone(ZONA);
   Logger.log('Hoja preparada: pestañas ' + Object.keys(CABECERAS).join(', ') + '.');
 }
 
@@ -652,4 +689,15 @@ function solapa_(a1, a2, b1, b2) { return a1 < b2 && b1 < a2; }
 
 function limpiar_(v, max) {
   return String(v || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, max);
+}
+
+// ───────────────────────── Servidor único de la intranet ─────────────────────────
+
+/** Lo que el servidor central usa de este módulo cuando va en su mismo proyecto. */
+function interfazUnica_() {
+  return {
+    atender: function (req, email) { return atender_(req, new Date(), email); },
+    limpiarCacheCentral: limpiarCache,
+    editor: { configurarHoja: configurarHoja, probarServidorCentral: probarServidorCentral, limpiarCache: limpiarCache }
+  };
 }

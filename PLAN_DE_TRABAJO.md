@@ -31,6 +31,14 @@ Igual que con convivencia: los cambios nuevos de salidas, mejor hacerlos ya en l
 - [x] Servidores de PRUEBAS pegados y clave copiada (19/11/2026). Funciona: salidas entra sin contraseña.
 - Pendiente para producción: lo mismo con los servidores del centro, cuando se decida pasar la intranet.
 
+## Servidor único (20/11/2026)
+
+- [x] Salidas y guardias dentro del proyecto del servidor central (`docs/servidor-unico.md`): una sola sesión, una
+      llamada para entrar en cada módulo, datos del centro sin pasar por la red, cambios del panel al momento.
+- [ ] Miguel Ángel lo instala en API_Intranet_PRUEBAS y lo prueba. Los servidores propios quedan de respaldo.
+- [ ] Al pasar a producción: un único servidor de producción; retirar vales, `SECRETO_INTRANET` y
+      `URL_SERVIDOR_CENTRAL` cuando ya no se usen.
+
 ## Fase 4 – Guardias
 
 - [x] Ausencias, cuadrante de guardias (horario de Séneca), reparto automático, registro y recuento (19/11/2026,

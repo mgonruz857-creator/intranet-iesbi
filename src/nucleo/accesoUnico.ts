@@ -38,6 +38,30 @@ export async function pedirVale(destino: 'salidas' | 'guardias'): Promise<Result
   };
 }
 
+export interface ResultadoEntradaUnica<U> {
+  ok: boolean;
+  token?: string;
+  usuario?: U;
+  /** El servidor de la intranet aún no lleva este módulo dentro: se usa su servidor propio (vale) */
+  noDisponible?: boolean;
+  codigo?: string;
+  mensaje?: string;
+}
+
+/**
+ * Servidor único: el módulo vive en el mismo servidor que la intranet y se entra con la misma sesión,
+ * en una sola llamada. Si ese servidor aún no lo tiene (versión antigua o módulo sin instalar), se avisa
+ * con noDisponible para que el módulo use su propio servidor como antes.
+ */
+export async function entrarServidorUnico<U>(modulo: 'salidas' | 'guardias'): Promise<ResultadoEntradaUnica<U>> {
+  const token = AuthService.getToken();
+  if (!token) return { ok: false, codigo: 'NO_AUTH', mensaje: 'No hay sesión iniciada en la intranet.' };
+  const r = await llamarApi('entrarUnico', { modulo, token }, 45000);
+  if (r.ok && r.token) return { ok: true, token: r.token as string, usuario: r.usuario as U };
+  if (r.codigo === 'SIN_MODULO' || /desconocida/i.test(String(r.error || ''))) return { ok: false, noDisponible: true };
+  return { ok: false, codigo: r.codigo, mensaje: String(r.mensaje || r.error || 'No se ha podido entrar.') };
+}
+
 /** Usuario con sesión en la intranet (null si no hay). Se comprueba también la inactividad. */
 function usuarioActual(): Profesor | null {
   return AuthService.getToken() ? AuthService.getCurrentUser() : null;

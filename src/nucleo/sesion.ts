@@ -9,7 +9,8 @@
 export const EVENTO_SESION_INTRANET = 'intranet-sesion';
 
 /** Sesiones que guardan en el navegador los demás módulos (se borran al cerrar la de la intranet). */
-const CLAVES_MODULOS = ['gbcs_token', 'gbcs_usuario', 'gbcs_acceso_unico', 'guardias_token', 'guardias_usuario', 'intranet_permisos'];
+const CLAVES_MODULOS = ['gbcs_token', 'gbcs_usuario', 'gbcs_acceso_unico', 'guardias_token', 'guardias_usuario', 'intranet_permisos',
+  'gbcs_unico', 'guardias_unico'];
 
 /** Lo llama convivencia al cerrar su sesión (a mano, por inactividad o porque el servidor la invalida). */
 export function alCerrarSesionConvivencia() {

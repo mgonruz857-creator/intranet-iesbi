@@ -5,6 +5,9 @@
  *   SECRETO_INTRANET=prueba node pruebas/salidas/servidor-local.mjs              (puerto 8787)
  *   VITE_URL_API_CONVIVENCIA=http://localhost:8788 VITE_URL_API_SALIDAS=http://localhost:8787 npm run dev
  *
+ * Servidor único (salidas y guardias dentro): SERVIDOR_UNICO=1 npx tsx pruebas/convivencia/servidor-local.mts
+ * y basta con VITE_URL_API_CONVIVENCIA=http://localhost:8788 npm run dev.
+ *
  * Cuentas: mgonruz857@g.educaand.es (administrador), docente.uno@g.educaand.es y directiva@g.educaand.es
  * (primer acceso: cualquier contraseña válida).
  */
@@ -14,7 +17,7 @@ const { generarServidorAppsScript } = await import('../../src/modulos/convivenci
 
 const profesor = (id: string, email: string, nombre: string, rol = 'ROLE_DOCENTE') =>
   ({ id_profesor: id, email, nombre, apellidos: 'Ejemplo', rol, estado: 'ACTIVO' });
-const srv = crearServidor(generarServidorAppsScript(), {
+const DATOS = {
   profesores: [
     profesor('p1', 'mgonruz857@g.educaand.es', 'Administrador', 'ROLE_CONVIVENCIA_ADMIN'),
     profesor('p2', 'docente.uno@g.educaand.es', 'Docente Uno'),
@@ -22,7 +25,16 @@ const srv = crearServidor(generarServidorAppsScript(), {
   ],
   alumnos: [{ id_alumno: 'al-1', nombre: 'Ana', apellidos: 'FICTICIA', grupo: '1ESO_A' }],
   sanciones: [], compensaciones: [], audit_logs: [],
-});
+};
+let srv: any;
+if (process.env.SERVIDOR_UNICO) {
+  const { crearServidorUnico } = await import('../unico/entorno.mts');
+  srv = crearServidorUnico(DATOS).srv;
+  srv.props.set('ID_HOJA_SALIDAS', 'hoja-salidas');
+  srv.props.set('ID_HOJA_GUARDIAS', 'hoja-guardias');
+} else {
+  srv = crearServidor(generarServidorAppsScript(), DATOS);
+}
 if (process.env.SECRETO_INTRANET) srv.props.set('SECRETO_INTRANET', process.env.SECRETO_INTRANET);
 
 http.createServer((req, res) => {

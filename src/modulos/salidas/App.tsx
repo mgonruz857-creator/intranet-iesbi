@@ -6,10 +6,10 @@ import Historico from './components/Historico';
 import Profesorado from './components/Profesorado';
 import CambiarClave from './components/CambiarClave';
 import { Aviso, type AvisoDatos } from './components/Aviso';
-import { EVENTO_SESION_CADUCADA, guardarToken, llamarApi, tokenGuardado } from './services/api';
+import { EVENTO_SESION_CADUCADA, guardarToken, llamarApi, tokenGuardado, usarServidorUnico } from './services/api';
 import { ES_ENTORNO_PRUEBAS } from './config/entorno';
 import type { Usuario } from './tipos';
-import { pedirVale, cerrarSesionIntranet } from '../../nucleo/accesoUnico';
+import { entrarServidorUnico, pedirVale, cerrarSesionIntranet } from '../../nucleo/accesoUnico';
 
 type Vista = 'aula' | 'historico' | 'profesorado';
 const CLAVE_USUARIO = 'gbcs_usuario';
@@ -60,6 +60,23 @@ export default function App() {
     if (!entrando) return;
     let vigente = true;
     (async () => {
+      // Primero, el servidor único de la intranet (una sola llamada); si aún no lleva salidas, su servidor propio
+      const u = await entrarServidorUnico<Usuario>('salidas');
+      if (!vigente) return;
+      if (!u.noDisponible) {
+        usarServidorUnico(u.ok);
+        if (u.ok && u.token && u.usuario) {
+          try { sessionStorage.setItem(CLAVE_ACCESO_UNICO, '1'); } catch { /* nada */ }
+          setAccesoUnico(true);
+          entrar(u.token, u.usuario, false);
+        } else {
+          // En el servidor único no hay contraseña propia de salidas: no se muestra el formulario
+          setSinAlta(u.mensaje || 'No se ha podido entrar en Salidas al baño.');
+        }
+        setEntrando(false);
+        return;
+      }
+      usarServidorUnico(false);
       const v = await pedirVale('salidas');
       if (!vigente) return;
       const r = v.ok ? await llamarApi<{ token: string; usuario: Usuario }>('entrarConVale', { vale: v.vale }) : null;

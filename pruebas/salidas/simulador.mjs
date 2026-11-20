@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import crypto from 'node:crypto';
 
-class Rango {
+export class Rango {
   constructor(hoja, fila, col, nf, nc) { Object.assign(this, { hoja, fila, col, nf, nc }); }
   getValues() {
     const out = [];
@@ -41,7 +41,7 @@ class Rango {
   setNumberFormat() { return this; }
 }
 
-class Hoja {
+export class Hoja {
   constructor(nombre, datos = []) { this.nombre = nombre; this.datos = datos; this.lecturas = 0; this.escrituras = 0; }
   getName() { return this.nombre; }
   getLastRow() {
@@ -56,14 +56,14 @@ class Hoja {
   setFrozenRows() {}
 }
 
-function formatear(fecha, zona, patron) {
+export function formatear(fecha, zona, patron) {
   const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
     timeZone: zona, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
     second: '2-digit', weekday: 'short', hourCycle: 'h23'
   }).formatToParts(fecha).map((x) => [x.type, x.value]));
   const dias = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
-  return patron.replace(/yyyy|MM|dd|HH|mm|ss|s|u/g, (t) => ({
-    yyyy: p.year, MM: p.month, dd: p.day, HH: p.hour, mm: p.minute, ss: p.second, s: String(Number(p.second)), u: String(dias[p.weekday])
+  return patron.replace(/yyyy|MM|dd|HH|H|mm|m|ss|s|u/g, (t) => ({
+    yyyy: p.year, MM: p.month, dd: p.day, HH: p.hour, H: String(Number(p.hour)), mm: p.minute, m: String(Number(p.minute)), ss: p.second, s: String(Number(p.second)), u: String(dias[p.weekday])
   })[t]);
 }
 

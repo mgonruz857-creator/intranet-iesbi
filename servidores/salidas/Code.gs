@@ -26,11 +26,16 @@
  *
  * Funciones para ejecutar desde el editor: configurarHoja, limpiarCache, probarServidorCentral,
  * cerrarSalidasAbiertas, activarModoPruebas y desactivarModoPruebas (solo en la hoja de PRUEBAS).
+ *
+ * Servidor único de la intranet (desde la versión 1.3.0): este mismo código puede ir como archivo
+ * Salidas.gs dentro del proyecto del servidor central (lo prepara scripts/generarServidorUnico.mts).
+ * Entonces la sesión es la de la intranet (sin contraseñas propias), los datos del centro se leen sin
+ * pasar por la red y la hoja se abre con la propiedad ID_HOJA_SALIDAS. Ver docs/servidor-unico.md.
  */
 
 // ───────────────────────── Configuración ─────────────────────────
 
-var VERSION = '1.2.0';
+var VERSION = '1.3.0';
 var ZONA = 'Europe/Madrid';
 var DOMINIO = '@g.educaand.es';
 var CUPO_GLOBAL = 5;
@@ -128,16 +133,25 @@ function doPost(e) {
   return salida_(atender_(req, ahoraServidor_()));
 }
 
-function atender_(req, ahora) {
+function atender_(req, ahora, emailUnico) {
   try {
-    switch (req.accion) {
-      case 'estadoCuenta': return estadoCuenta_(req);
-      case 'login': return login_(req);
-      case 'entrarConVale': return entrarConVale_(req);
-      case 'logout': cerrarSesion_(req.token); return { ok: true };
-      case 'cambiarClave': return cambiarClave_(req);
+    var usuario;
+    if (emailUnico !== undefined) {
+      // Servidor único: el servidor central ya ha comprobado la sesión de la intranet (sin contraseñas propias)
+      usuario = profesorado_()[norm_(emailUnico)];
+      if (!usuario) error_('401_UNAUTHORIZED');
+      if (req.accion === 'entrarUnico') return { ok: true, token: req.token, usuario: perfilPublico_(usuario), primerAcceso: false };
+      if (req.accion === 'restablecerClave' || req.accion === 'guardarHorario') return fallo_('ERROR_ACCION');
+    } else {
+      switch (req.accion) {
+        case 'estadoCuenta': return estadoCuenta_(req);
+        case 'login': return login_(req);
+        case 'entrarConVale': return entrarConVale_(req);
+        case 'logout': cerrarSesion_(req.token); return { ok: true };
+        case 'cambiarClave': return cambiarClave_(req);
+      }
+      usuario = sesion_(req.token);
     }
-    var usuario = sesion_(req.token);
     switch (req.accion) {
       case 'estado': return estado_(usuario, req, ahora);
       case 'autorizar': return conCerrojo_(function () { return autorizar_(usuario, req, ahora); });
@@ -293,7 +307,7 @@ function guardarHorario_(usuario, req) {
   });
   (Array.isArray(req.docentes) ? req.docentes : []).forEach(function (e) { if (profes[norm_(e)]) docentes[norm_(e)] = true; });
 
-  var libro = SpreadsheetApp.getActive();
+  var libro = libro_();
   var hoja = libro.getSheetByName(HOJA_HORARIO);
   if (!hoja) {
     hoja = libro.insertSheet(HOJA_HORARIO);
@@ -516,7 +530,7 @@ function historico_(usuario, datos, ahora) {
   var fecha = /^\d{4}-\d{2}-\d{2}$/.test(String(datos.fecha || '')) ? datos.fecha : fechaHoy_(ahora);
   var alumnos = alumnado_();
   var salidas = filasDelDia_(fecha).filas.map(function (f) { return salidaParaVista_(f, alumnos, usuario, ahora); });
-  return { ok: true, fecha: fecha, salidas: salidas, url_hoja: SpreadsheetApp.getActive().getUrl() };
+  return { ok: true, fecha: fecha, salidas: salidas, url_hoja: libro_().getUrl() };
 }
 
 // ───────────────────────── Reglas de horario ─────────────────────────
@@ -564,8 +578,22 @@ function hayCaducadas_(dia, ahora) {
 
 // ───────────────────────── Acceso a la hoja ─────────────────────────
 
+/** La hoja de salidas: la del propio script o, en el servidor único, la de la propiedad ID_HOJA_SALIDAS. */
+var LIBRO_ = null;
+function libro_() {
+  if (LIBRO_) return LIBRO_;
+  if (servidorUnico_()) {
+    var id = String(PropertiesService.getScriptProperties().getProperty('ID_HOJA_SALIDAS') || '').trim();
+    if (!id) error_('ERROR_CONFIG', 'Falta la propiedad ID_HOJA_SALIDAS en el servidor de la intranet.');
+    LIBRO_ = SpreadsheetApp.openById(id);
+  } else {
+    LIBRO_ = SpreadsheetApp.getActive();
+  }
+  return LIBRO_;
+}
+
 function hoja_(nombre) {
-  var h = SpreadsheetApp.getActive().getSheetByName(nombre);
+  var h = libro_().getSheetByName(nombre);
   if (!h) throw new Error('Falta la pestaña "' + nombre + '". Ejecute configurarHoja desde el editor.');
   return h;
 }
@@ -668,7 +696,7 @@ function grupoSegunHorario_(email, ahora) {
 function horario_() {
   if (modoCentral_()) return datosCentral_().horario;
   return conCache_('GBCS_HORARIO', function () {
-    var libro = SpreadsheetApp.getActive();
+    var libro = libro_();
     if (!libro.getSheetByName(HOJA_HORARIO)) return {};
     var porDocente = {};
     valoresDe_(HOJA_HORARIO, 5).forEach(function (f) {
@@ -754,7 +782,10 @@ function urlCentral_() {
   return String(PropertiesService.getScriptProperties().getProperty('URL_SERVIDOR_CENTRAL') || '').trim();
 }
 
-function modoCentral_() { return !!urlCentral_(); }
+/** true si este código va dentro del servidor central (servidor único de la intranet). */
+function servidorUnico_() { return typeof datosCentroInterno === 'function'; }
+
+function modoCentral_() { return servidorUnico_() || !!urlCentral_(); }
 
 /**
  * Pide al servidor central (convivencia) el profesorado activo con su permiso en salidas, el alumnado
@@ -763,6 +794,7 @@ function modoCentral_() { return !!urlCentral_(); }
  */
 function datosCentral_() {
   return conCache_('GBCS_CENTRAL', function () {
+    if (servidorUnico_()) return convertirCentral_(datosCentroInterno('salidas'));
     var secreto = PropertiesService.getScriptProperties().getProperty('SECRETO_INTRANET');
     if (!secreto) error_('ERROR_CENTRAL', 'Falta la propiedad SECRETO_INTRANET en el servidor de salidas.');
     var datos = JSON.stringify({ modulo: 'salidas', exp: new Date().getTime() + 120000, n: Utilities.getUuid() });
@@ -860,7 +892,7 @@ function desactivarModoPruebas() {
 
 /** Crea las tres pestañas con sus cabeceras si no existen. No borra nada. */
 function configurarHoja() {
-  var libro = SpreadsheetApp.getActive();
+  var libro = libro_();
   libro.setSpreadsheetTimeZone(ZONA);
   Object.keys(CABECERAS).forEach(function (nombre) {
     var hoja = libro.getSheetByName(nombre) || libro.insertSheet(nombre);
@@ -872,7 +904,8 @@ function configurarHoja() {
     if (nombre === HOJA_HISTORICO) hoja.getRange('B:B').setNumberFormat('@');
   });
   limpiarCache();
-  secretoServidor_();
+  // En el servidor único no hay contraseñas propias (y no se toca la clave del servidor central)
+  if (!servidorUnico_()) secretoServidor_();
   Logger.log('Hoja preparada (zona horaria ' + libro.getSpreadsheetTimeZone() + ').');
 }
 
@@ -959,4 +992,18 @@ function textoMinutos_(m) { return ('0' + Math.floor(m / 60)).slice(-2) + ':' + 
 /** El instante de ese mismo día (hora de Madrid) a los minutos indicados. */
 function instanteDelDia_(fecha, minutos) {
   return new Date(fecha.getTime() + (minutos - minutosDe_(fecha)) * 60000 - Number(Utilities.formatDate(fecha, ZONA, 's')) * 1000);
+}
+
+// ───────────────────────── Servidor único de la intranet ─────────────────────────
+
+/** Lo que el servidor central usa de este módulo cuando va en su mismo proyecto. */
+function interfazUnica_() {
+  return {
+    atender: function (req, email) { return atender_(req, ahoraServidor_(), email); },
+    limpiarCacheCentral: function () { CacheService.getScriptCache().removeAll(['GBCS_CENTRAL_N']); },
+    editor: {
+      configurarHoja: configurarHoja, limpiarCache: limpiarCache, probarServidorCentral: probarServidorCentral,
+      cerrarSalidasAbiertas: cerrarSalidasAbiertas, activarModoPruebas: activarModoPruebas, desactivarModoPruebas: desactivarModoPruebas
+    }
+  };
 }

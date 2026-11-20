@@ -3,6 +3,7 @@
  * POST con el cuerpo en texto plano (sin consulta previa CORS) y respuesta JSON.
  */
 import { URL_API } from '../config/entorno';
+import { URL_API_DRIVE } from '../../convivencia/config/entorno';
 
 export const EVENTO_SESION_CADUCADA = 'gbcs-sesion-caducada';
 const CLAVE_TOKEN = 'gbcs_token';
@@ -14,6 +15,17 @@ export interface Respuesta {
   [clave: string]: any;
 }
 
+// Servidor único: el módulo está dentro del servidor de la intranet (se decide al entrar)
+const CLAVE_UNICO = 'gbcs_unico';
+
+export function usarServidorUnico(si: boolean) {
+  try { if (si) sessionStorage.setItem(CLAVE_UNICO, '1'); else sessionStorage.removeItem(CLAVE_UNICO); } catch { /* sin almacenamiento */ }
+}
+
+function servidorUnico(): boolean {
+  try { return sessionStorage.getItem(CLAVE_UNICO) === '1'; } catch { return false; }
+}
+
 export function tokenGuardado(): string {
   try { return sessionStorage.getItem(CLAVE_TOKEN) || ''; } catch { return ''; }
 }
@@ -23,7 +35,7 @@ export function guardarToken(t: string) {
 }
 
 export async function llamarApi<T = Respuesta>(accion: string, datos: Record<string, unknown> = {}, timeoutMs = 20000): Promise<T & Respuesta> {
-  if (!URL_API) {
+  if (!URL_API && !servidorUnico()) {
     return { ok: false, codigo: 'SIN_SERVIDOR', mensaje: 'La app aún no está conectada a su servidor (falta la URL en src/config/entorno.ts).' } as T & Respuesta;
   }
   for (let intento = 1; intento <= 2; intento++) {
@@ -40,10 +52,11 @@ async function unaVez(accion: string, datos: Record<string, unknown>, timeoutMs:
   const control = new AbortController();
   const temporizador = setTimeout(() => control.abort(), timeoutMs);
   try {
-    const respuesta = await fetch(URL_API, {
+    const unico = servidorUnico();
+    const respuesta = await fetch(unico ? URL_API_DRIVE : URL_API, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ accion, token: tokenGuardado(), ...datos }),
+      body: JSON.stringify({ accion, token: tokenGuardado(), ...(unico ? { modulo: 'salidas' } : {}), ...datos }),
       signal: control.signal,
       cache: 'no-store',
     });
