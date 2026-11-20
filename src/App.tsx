@@ -2,7 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { Portada } from './nucleo/Portada';
 import { BarraIntranet } from './nucleo/BarraIntranet';
 import { MODULOS, type IdModulo } from './nucleo/modulos';
-import { useRuta } from './nucleo/ruta';
+import { irA, useRuta } from './nucleo/ruta';
 import { useSesionIntranet, usePermisosIntranet, avisarCambioSesion } from './nucleo/accesoUnico';
 import { EntornoBanner } from './modulos/convivencia/components/EntornoBanner';
 import { LoginView } from './modulos/convivencia/components/LoginView';
@@ -20,13 +20,13 @@ export default function App() {
   const usuario = useSesionIntranet();
   const permisos = usePermisosIntranet(usuario);
 
-  // Un solo inicio de sesión para toda la intranet (el de convivencia). Tras entrar se sigue
-  // en la dirección pedida (#/salidas…) o en la portada.
+  // Un solo inicio de sesión para toda la intranet (el de convivencia). Tras entrar se va SIEMPRE
+  // a la portada con las aplicaciones, aunque se viniera de la dirección de un módulo (#/salidas…).
   if (!usuario) {
     return (
       <>
         <EntornoBanner />
-        <LoginView onLoginSuccess={avisarCambioSesion} titulo="Intranet IESBI" subtitulo="Aplicaciones del IES Blas Infante" />
+        <LoginView onLoginSuccess={() => { irA(''); avisarCambioSesion(); }} titulo="Intranet IESBI" subtitulo="Aplicaciones del IES Blas Infante" />
       </>
     );
   }
