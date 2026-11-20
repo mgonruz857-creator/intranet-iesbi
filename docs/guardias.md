@@ -20,7 +20,7 @@ Módulo de la intranet para ausencias del profesorado y cobertura de guardias. D
   alguna ha quedado sin cubrir (ni al registrarla, ni en "Mis ausencias", ni en el día: ve "Su ausencia"). Solo
   Jefatura/Dirección lo ve. Lo controla el servidor (`registrarAusencia_` y `vistaGuardia_`, marca `propia`).
 - **Parte diario (20/11/2026):** Jefatura/Dirección imprime desde "Día" el parte de guardias de la fecha elegida:
-  hora, grupo, aula, docente ausente, quién cubre (o SIN CUBRIR), tarea y columna para firmar, más el profesorado de
+  hora, grupo, aula, docente ausente, quién cubre (o SIN CUBRIR), tarea, más el profesorado de
   guardia. Sin motivos. (Se puede guardar en PDF desde el diálogo de imprimir.)
 - **Mi horario (20/11/2026):** cada docente ve e imprime su horario semanal (acción `miHorario`; incluye las horas
   prestadas si es sustituto). Jefatura puede ver el de cualquier docente.

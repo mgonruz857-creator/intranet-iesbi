@@ -123,7 +123,6 @@ function ParteDia({ fecha, guardias, cuadrante }: { fecha: string; guardias: Gua
               <th className={celda + ' text-left'}>Docente ausente</th>
               <th className={celda + ' text-left'}>Cubre</th>
               <th className={celda + ' text-left'}>Tarea</th>
-              <th className={celda + ' text-left w-24'}>Firma</th>
             </tr>
           </thead>
           <tbody>
@@ -135,7 +134,6 @@ function ParteDia({ fecha, guardias, cuadrante }: { fecha: string; guardias: Gua
                 <td className={celda}>{g.ausente}</td>
                 <td className={celda + (g.asignada ? '' : ' font-bold')}>{g.asignada ? g.asignadaNombre : 'SIN CUBRIR'}</td>
                 <td className={celda}>{(g.tarea || '').slice(0, 160)}{(g.tarea || '').length > 160 ? '…' : ''}{g.archivo ? ' (archivo adjunto)' : ''}</td>
-                <td className={celda}></td>
               </tr>
             ))}
           </tbody>
