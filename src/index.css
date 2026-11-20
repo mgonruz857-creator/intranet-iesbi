@@ -1,2 +1,8 @@
 @import "tailwindcss";
 @import "./modulos/convivencia/impresion.css";
+
+/* Lo que no sale al imprimir (franja de la intranet, menús, botones) */
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff !important; }
+}

@@ -11,13 +11,15 @@ export interface Guardia {
   archivo: string;
   asignada: string;
   asignadaNombre: string;
-  estado: 'PENDIENTE' | 'HECHA' | 'ANULADA';
+  estado: 'PENDIENTE' | 'HECHA' | 'ANULADA' | '';
   incidencias: string;
   mia: boolean;
   ausente?: string;
   ausenteEmail?: string;
   idAusencia?: string;
   motivo?: string;
+  /** Hora de la propia ausencia: no se dice quién la cubre ni si ha quedado sin cubrir. */
+  propia?: boolean;
 }
 
 export interface FranjaCuadrante { desde: string; hasta: string; recreo: boolean; docentes: { email: string; nombre: string }[] }

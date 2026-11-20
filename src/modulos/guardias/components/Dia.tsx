@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { CheckCircle2, ChevronLeft, ChevronRight, Download, Hand, RefreshCw, UserCog } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ChevronRight, Download, Hand, Printer, RefreshCw, UserCog } from 'lucide-react';
 import { llamarApi } from '../api';
 import { etiquetaGrupo } from '../../panel/api';
 import { descargarBase64, fechaLarga, hoyTexto, sumarDias, type Avisar, type FranjaCuadrante, type Guardia, type UsuarioGuardias } from '../tipos';
@@ -28,10 +28,12 @@ export default function Dia({ usuario, avisar }: Props) {
   }, [cargar]);
 
   const lista = (guardias || []).filter((g) => !soloMias || g.mia);
-  const sinCubrir = (guardias || []).filter((g) => !g.asignada).length;
+  const sinCubrir = (guardias || []).filter((g) => !g.asignada && !g.propia).length;
 
   return (
-    <div className="space-y-4">
+    <>
+    {usuario.jefatura && guardias && <ParteDia fecha={fecha} guardias={guardias} cuadrante={cuadrante} />}
+    <div className="space-y-4 print:hidden">
       <div className="flex flex-wrap items-center gap-2">
         <button onClick={() => setFecha(sumarDias(fecha, -1))} className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50" aria-label="Día anterior">
           <ChevronLeft className="w-4 h-4" />
@@ -49,6 +51,12 @@ export default function Dia({ usuario, avisar }: Props) {
         <button onClick={cargar} className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50" aria-label="Actualizar">
           <RefreshCw className="w-4 h-4" />
         </button>
+        {usuario.jefatura && (
+          <button onClick={() => window.print()} disabled={!guardias}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-700 text-white text-xs font-semibold hover:bg-sky-800 disabled:opacity-50">
+            <Printer className="w-4 h-4" /> Imprimir parte del día
+          </button>
+        )}
       </div>
 
       {usuario.jefatura && sinCubrir > 0 && (
@@ -86,6 +94,64 @@ export default function Dia({ usuario, avisar }: Props) {
         )}
       </section>
     </div>
+    </>
+  );
+}
+
+/** Parte diario de guardias para imprimir (Jefatura/Dirección). Solo se ve al imprimir. Sin motivos de ausencia. */
+function ParteDia({ fecha, guardias, cuadrante }: { fecha: string; guardias: Guardia[]; cuadrante: FranjaCuadrante[] }) {
+  const celda = 'border border-slate-400 px-2 py-1 align-top';
+  const sinCubrir = guardias.filter((g) => !g.asignada).length;
+  return (
+    <div className="hidden print:block text-black text-[11px]">
+      <div className="flex items-end justify-between border-b-2 border-black pb-1 mb-3">
+        <div>
+          <div className="text-base font-bold">Parte de guardias</div>
+          <div className="capitalize text-sm">{fechaLarga(fecha)}</div>
+        </div>
+        <div className="text-right">IES Blas Infante · Córdoba</div>
+      </div>
+      {!guardias.length ? (
+        <p>No hay ausencias registradas este día.</p>
+      ) : (
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="bg-slate-100">
+              <th className={celda + ' text-left w-20'}>Hora</th>
+              <th className={celda + ' text-left'}>Grupo</th>
+              <th className={celda + ' text-left w-14'}>Aula</th>
+              <th className={celda + ' text-left'}>Docente ausente</th>
+              <th className={celda + ' text-left'}>Cubre</th>
+              <th className={celda + ' text-left'}>Tarea</th>
+              <th className={celda + ' text-left w-24'}>Firma</th>
+            </tr>
+          </thead>
+          <tbody>
+            {guardias.map((g) => (
+              <tr key={g.id} className="break-inside-avoid">
+                <td className={celda + ' tabular-nums whitespace-nowrap'}>{g.desde}–{g.hasta}</td>
+                <td className={celda}>{etiquetaGrupo(g.grupo)}</td>
+                <td className={celda}>{g.aula}</td>
+                <td className={celda}>{g.ausente}</td>
+                <td className={celda + (g.asignada ? '' : ' font-bold')}>{g.asignada ? g.asignadaNombre : 'SIN CUBRIR'}</td>
+                <td className={celda}>{(g.tarea || '').slice(0, 160)}{(g.tarea || '').length > 160 ? '…' : ''}{g.archivo ? ' (archivo adjunto)' : ''}</td>
+                <td className={celda}></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {sinCubrir > 0 && <p className="mt-2 font-bold">{sinCubrir} {sinCubrir === 1 ? 'hora sin cubrir' : 'horas sin cubrir'}.</p>}
+      {cuadrante.length > 0 && (
+        <div className="mt-4">
+          <div className="font-bold mb-1">Profesorado de guardia</div>
+          {cuadrante.map((f) => (
+            <div key={f.desde + f.hasta}><span className="tabular-nums font-semibold">{f.desde}–{f.hasta}{f.recreo ? ' (recreo)' : ''}:</span> {f.docentes.map((d) => d.nombre).join(' · ')}</div>
+          ))}
+        </div>
+      )}
+      <div className="mt-6 text-[10px] text-slate-600">Impreso el {new Date().toLocaleString('es-ES')}</div>
+    </div>
   );
 }
 
@@ -121,7 +187,9 @@ function FilaGuardia({ g, usuario, cuadrante, avisar, alCambiar }: FilaProps) {
           <div className="text-xs text-slate-500">Ausente: {g.ausente}{g.motivo !== undefined && g.motivo && <span> · Motivo: {g.motivo}</span>}</div>
         </div>
         <div className="text-sm text-right">
-          {g.asignada ? (
+          {g.propia ? (
+            <div className="text-slate-500">Su ausencia</div>
+          ) : g.asignada ? (
             <div className={g.mia ? 'font-bold text-sky-800' : 'text-slate-700'}>{g.mia ? 'Le toca a usted' : g.asignadaNombre}</div>
           ) : (
             <div className="font-bold text-red-700">Sin cubrir</div>
@@ -156,7 +224,7 @@ function FilaGuardia({ g, usuario, cuadrante, avisar, alCambiar }: FilaProps) {
               </div>
             </div>
           )}
-          {!g.asignada && yoDeGuardia && (
+          {!g.asignada && !g.propia && yoDeGuardia && (
             <button disabled={ocupado} onClick={() => accion('coger', {}, 'Guardia asignada a usted.')}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-700 text-white text-xs font-semibold hover:bg-sky-800">
               <Hand className="w-4 h-4" /> Cogerla yo

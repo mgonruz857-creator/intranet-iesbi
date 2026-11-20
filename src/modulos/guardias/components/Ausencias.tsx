@@ -56,11 +56,12 @@ export default function Ausencias({ usuario, avisar }: Props) {
         desde: h.desde, hasta: h.hasta, grupo: h.grupo, aula: h.aula, tarea: h.tarea,
         archivo: h.archivo ? { nombre: h.archivo.name, tipo: h.archivo.type, base64: await leerComoBase64(h.archivo) } : undefined,
       })));
-      const r = await llamarApi<{ sinCubrir: number }>('registrarAusencia', {
+      const r = await llamarApi<{ sinCubrir?: number }>('registrarAusencia', {
         fecha, motivo, horas: datos, ...(docente !== usuario.email ? { email: docente } : {}),
       }, 90000);
       if (!r.ok) { avisar(r.mensaje || 'No se ha podido registrar la ausencia.', true); return; }
-      avisar(r.sinCubrir ? `Ausencia registrada. ${r.sinCubrir} hora(s) han quedado sin cubrir: Jefatura lo verá.` : 'Ausencia registrada y guardias asignadas.');
+      // Solo Jefatura/Dirección recibe si alguna hora ha quedado sin cubrir
+      avisar(r.sinCubrir ? `Ausencia registrada. ${r.sinCubrir} hora(s) han quedado sin cubrir.` : 'Ausencia registrada.');
       setMotivo('');
       setHoras((h) => h && h.map((x) => ({ ...x, tarea: '', archivo: null })));
       cargarMias();
@@ -147,7 +148,7 @@ export default function Ausencias({ usuario, avisar }: Props) {
               <li key={a.id} className="py-2 flex flex-wrap items-center gap-3 text-sm">
                 <span className="font-semibold capitalize w-48">{fechaLarga(a.fecha)}</span>
                 <span className="flex-1 text-slate-600 text-xs">
-                  {a.horas.map((h) => `${h.desde} ${etiquetaGrupo(h.grupo)}: ${h.asignadaNombre || 'sin cubrir'}${h.estado === 'HECHA' ? ' ✓' : ''}`).join(' · ')}
+                  {a.horas.map((h) => `${h.desde} ${etiquetaGrupo(h.grupo)}` + (h.propia ? '' : `: ${h.asignadaNombre || 'sin cubrir'}${h.estado === 'HECHA' ? ' ✓' : ''}`)).join(' · ')}
                 </span>
                 {a.fecha >= hoyTexto() && (
                   <button onClick={() => anular(a)} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-slate-200 text-xs hover:bg-red-50 text-red-700">

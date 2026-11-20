@@ -36,6 +36,8 @@ Igual que con convivencia: los cambios nuevos de salidas, mejor hacerlos ya en l
 - [x] Ausencias, cuadrante de guardias (horario de Séneca), reparto automático, registro y recuento (19/11/2026,
       ver `docs/guardias.md`). Motivo solo para JEFATURA; recuento desde el 1 de septiembre.
 - [x] Servidor de guardias de pruebas creado (Guardias_PRUEBAS en proyectoIntranet/PRUEBAS) y conectado (19/11).
+- [x] Parte diario imprimible (Jefatura/Dirección), "Mi horario" para el profesorado y el docente ausente no sabe si
+      alguna hora queda sin cubrir (20/11, servidor de guardias 1.1.0: hay que pegarlo de nuevo y publicar versión).
 - [ ] Volver a subir el PDF de horarios de Séneca en el panel (para guardar las horas de guardia y las aulas).
 - [x] Avisos de horarios (20/11, pedido por Miguel Ángel): aviso permanente arriba del panel (docentes sin horario y
       horarios de Séneca sin docente). Las páginas del PDF sin docente se guardan como pendientes

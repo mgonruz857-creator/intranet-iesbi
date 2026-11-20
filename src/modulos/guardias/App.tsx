@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
-import { BarChart3, CalendarDays, LogOut, UserMinus } from 'lucide-react';
+import { BarChart3, CalendarDays, Clock, LogOut, UserMinus } from 'lucide-react';
 import Dia from './components/Dia';
 import Ausencias from './components/Ausencias';
 import Recuento from './components/Recuento';
+import MiHorario from './components/MiHorario';
 import { EVENTO_SESION_CADUCADA, guardarToken, llamarApi, tokenGuardado } from './api';
 import { ES_ENTORNO_PRUEBAS } from './config/entorno';
 import type { UsuarioGuardias } from './tipos';
 import { pedirVale, cerrarSesionIntranet } from '../../nucleo/accesoUnico';
 
-type Vista = 'dia' | 'ausencias' | 'recuento';
+type Vista = 'dia' | 'ausencias' | 'horario' | 'recuento';
 const CLAVE_USUARIO = 'guardias_usuario';
 
 interface AvisoDatos { texto: string; error: boolean; id: number }
@@ -84,9 +85,9 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen bg-slate-50 text-slate-900 print:bg-white print:min-h-0">
       {ES_ENTORNO_PRUEBAS && (
-        <div className="bg-amber-100 border-b border-amber-200 text-amber-900 text-[11px] font-semibold text-center py-1 px-4">
+        <div className="bg-amber-100 border-b border-amber-200 text-amber-900 text-[11px] font-semibold text-center py-1 px-4 print:hidden">
           Entorno de PRUEBAS · datos ficticios
         </div>
       )}
@@ -102,7 +103,7 @@ export default function App() {
         </div>
       ) : (
         <>
-          <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80">
+          <header className="print:hidden sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80">
             <div className="max-w-6xl mx-auto px-4 py-2 flex items-center gap-3 flex-wrap">
               <div className="mr-auto leading-tight">
                 <div className="font-bold text-sky-950">Guardias</div>
@@ -111,6 +112,7 @@ export default function App() {
               <nav className="flex items-center gap-1.5 flex-wrap">
                 {pestana('dia', 'Día', CalendarDays)}
                 {pestana('ausencias', 'Ausencias', UserMinus)}
+                {pestana('horario', 'Mi horario', Clock)}
                 {usuario.jefatura && pestana('recuento', 'Recuento', BarChart3)}
               </nav>
               <span className="hidden lg:block text-xs text-slate-500 max-w-56 truncate" title={usuario.email}>{usuario.nombre}</span>
@@ -120,15 +122,16 @@ export default function App() {
               </button>
             </div>
           </header>
-          <main className="max-w-6xl mx-auto px-4 py-4">
+          <main className="max-w-6xl mx-auto px-4 py-4 print:max-w-none print:p-0">
             {vista === 'dia' && <Dia usuario={usuario} avisar={avisar} />}
             {vista === 'ausencias' && <Ausencias usuario={usuario} avisar={avisar} />}
+            {vista === 'horario' && <MiHorario usuario={usuario} avisar={avisar} />}
             {vista === 'recuento' && usuario.jefatura && <Recuento avisar={avisar} />}
           </main>
         </>
       )}
       {aviso && (
-        <div role="status" className={'fixed bottom-4 left-1/2 -translate-x-1/2 z-50 max-w-md px-4 py-2.5 rounded-xl shadow-lg text-sm font-medium ' +
+        <div role="status" className={'print:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-50 max-w-md px-4 py-2.5 rounded-xl shadow-lg text-sm font-medium ' +
           (aviso.error ? 'bg-red-600 text-white' : 'bg-slate-900 text-white')}>
           {aviso.texto}
         </div>

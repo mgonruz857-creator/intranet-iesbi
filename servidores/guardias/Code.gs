@@ -28,7 +28,7 @@
 
 // ───────────────────────── Configuración ─────────────────────────
 
-var VERSION = '1.0.0';
+var VERSION = '1.1.0';
 var ZONA = 'Europe/Madrid';
 var DOMINIO = '@g.educaand.es';
 var DURACION_SESION_SEG = 21600;    // 6 horas (máximo de CacheService), se renueva con el uso
@@ -93,6 +93,7 @@ function atender_(req, ahora) {
     switch (req.accion) {
       case 'inicio': return { ok: true, usuario: perfilPublico_(u), hoy: fechaTexto_(ahora), version: VERSION };
       case 'misClases': return misClases_(u, req);
+      case 'miHorario': return miHorario_(u, req);
       case 'registrarAusencia': return conCerrojo_(function () { return registrarAusencia_(u, req, ahora); });
       case 'anularAusencia': return conCerrojo_(function () { return anularAusencia_(u, req, ahora); });
       case 'misAusencias': return misAusencias_(u, req, ahora);
@@ -267,6 +268,17 @@ function misClases_(u, req) {
  * horas = [{desde, hasta, grupo, aula, tarea, archivo?: {nombre, tipo, base64}}]
  * Jefatura puede registrarla por otro docente (email).
  */
+/** Horario semanal del docente (con las horas prestadas si es sustituto). Jefatura puede ver el de cualquiera. */
+function miHorario_(u, req) {
+  var email = u.email;
+  if (req.email && norm_(req.email) !== u.email) { exigirJefatura_(u); email = norm_(req.email); }
+  var horas = (central_().horario[email] || []).map(function (t) {
+    return { dia: t[0], desde: texto_(t[1]), hasta: texto_(t[2]), grupo: t[3], aula: t[4] };
+  });
+  horas.sort(function (a, b) { return a.dia - b.dia || a.desde.localeCompare(b.desde); });
+  return { ok: true, email: email, horas: horas };
+}
+
 function registrarAusencia_(u, req, ahora) {
   var email = u.email;
   if (req.email && norm_(req.email) !== u.email) { exigirJefatura_(u); email = norm_(req.email); }
@@ -316,8 +328,13 @@ function registrarAusencia_(u, req, ahora) {
     hojaG.getRange(k + 2, G.asignada + 1).setValues([[g[G.asignada]]]);
     reasignadas++;
   });
-  return { ok: true, id: idAus, horas: nuevas.length, reasignadas: reasignadas,
-    sinCubrir: nuevas.filter(function (n) { return !n[G.asignada]; }).length };
+  var r = { ok: true, id: idAus, horas: nuevas.length };
+  // El docente que registra su ausencia no sabe si alguna hora queda sin cubrir: solo Jefatura/Dirección
+  if (u.jefatura) {
+    r.reasignadas = reasignadas;
+    r.sinCubrir = nuevas.filter(function (n) { return !n[G.asignada]; }).length;
+  }
+  return r;
 }
 
 function anularAusencia_(u, req, ahora) {
@@ -343,7 +360,7 @@ function misAusencias_(u, req, ahora) {
     .map(function (a) {
       return { id: a[A.id], fecha: a[A.fecha], motivo: a[A.motivo],
         horas: guardias.filter(function (g) { return g[G.ausencia] === a[A.id] && g[G.estado] !== 'ANULADA'; }).map(function (g) {
-          return vistaGuardia_(g, prof, u, null);
+          return vistaGuardia_(g, prof, u, a);
         }) };
     });
   lista.sort(function (a, b) { return b.fecha.localeCompare(a.fecha); });
@@ -388,6 +405,11 @@ function vistaGuardia_(g, prof, u, ausencia) {
     asignadaNombre: asignada ? (prof[asignada] ? prof[asignada].nombre : asignada) : '',
     estado: g[G.estado], incidencias: g[G.incidencias], mia: asignada === u.email
   };
+  // Las horas de la propia ausencia: el docente no ve quién la cubre ni si ha quedado sin cubrir
+  if (ausencia && ausencia[A.email] === u.email && !u.jefatura) {
+    v.propia = true;
+    v.asignada = ''; v.asignadaNombre = ''; v.estado = ''; v.incidencias = ''; v.mia = false;
+  }
   if (ausencia) {
     v.ausente = prof[ausencia[A.email]] ? prof[ausencia[A.email]].nombre : ausencia[A.email];
     v.ausenteEmail = ausencia[A.email];

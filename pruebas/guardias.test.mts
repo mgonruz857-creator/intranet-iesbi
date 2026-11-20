@@ -83,7 +83,8 @@ r = pedir({ accion: 'registrarAusencia', token: tAna, fecha: LUNES, motivo: 'Cit
   { desde: '08:30', hasta: '09:30', grupo: '1ESO_A', aula: 'A12', tarea: 'Ejercicios 1 a 5, página 40',
     archivo: { nombre: 'tarea.pdf', tipo: 'application/pdf', base64: pdf } },
   { desde: '09:30', hasta: '10:30', grupo: '2ESO_B', aula: 'B03', tarea: 'Lectura del tema 3' }] });
-ok('se registra la ausencia con tarea y archivo', r.ok && r.horas === 2 && r.sinCubrir === 0, JSON.stringify(r));
+ok('se registra la ausencia con tarea y archivo', r.ok && r.horas === 2, JSON.stringify(r));
+ok('el docente ausente no sabe si alguna hora queda sin cubrir', r.sinCubrir === undefined && r.reasignadas === undefined);
 const idAusAna = r.id;
 r = pedir({ accion: 'registrarAusencia', token: tAna, fecha: LUNES, motivo: '', horas: [{ desde: '09:00', hasta: '10:00', tarea: '' }] });
 ok('no se puede registrar dos veces la misma hora', !r.ok && r.codigo === 'ERROR_YA_AUSENTE');
@@ -97,7 +98,16 @@ ok('2ª hora: la única de guardia (Bea)', g2 && g2.asignada === BEA);
 ok('los demás no ven el motivo', g1 && g1.motivo === undefined && g1.ausente === 'Ap1, Np1');
 ok('...pero sí la tarea, el grupo y el aula', g1.tarea.startsWith('Ejercicios') && g1.grupo === '1ESO_A' && g1.aula === 'A12' && g1.archivo === 'tarea.pdf');
 ok('Jefatura ve el motivo', pedir({ accion: 'dia', token: tJefa, fecha: LUNES }).guardias[0].motivo === 'Cita médica');
-ok('el docente ausente ve su motivo', pedir({ accion: 'misAusencias', token: tAna }).ausencias[0].motivo === 'Cita médica');
+const misAus = pedir({ accion: 'misAusencias', token: tAna }).ausencias[0];
+ok('el docente ausente ve su motivo', misAus.motivo === 'Cita médica');
+ok('...pero no quién cubre sus horas ni su estado', misAus.horas.every((h: any) => h.propia && !h.asignada && !h.asignadaNombre && !h.estado),
+  JSON.stringify(misAus.horas));
+const diaAna = pedir({ accion: 'dia', token: tAna, fecha: LUNES }).guardias.filter((g: any) => g.ausenteEmail === ANA);
+ok('...tampoco en la vista del día', diaAna.length === 2 && diaAna.every((g: any) => g.propia && !g.asignada && !g.asignadaNombre));
+r = pedir({ accion: 'miHorario', token: tAna });
+ok('el docente ve su horario semanal', r.ok && r.horas.length > 0 && r.horas.every((h: any) => h.dia >= 1 && h.dia <= 5 && h.grupo), JSON.stringify(r));
+ok('un docente no puede ver el horario de otro', pedir({ accion: 'miHorario', token: tAna, email: EVA }).codigo === 'ERROR_SIN_PERMISO');
+ok('Jefatura sí', pedir({ accion: 'miHorario', token: tJefa, email: EVA }).ok);
 const recreo = dia.cuadrante.find((f: any) => f.recreo);
 ok('el cuadrante del día incluye la guardia de recreo', !!recreo && recreo.docentes[0].email === DANI && dia.cuadrante.length === 3);
 r = pedir({ accion: 'descargarTarea', token: tCarlos, id: g1.id });
@@ -133,9 +143,9 @@ ok('el docente de guardia la coge', r.ok);
 r = pedir({ accion: 'coger', token: tBea, id: g2.id });
 ok('una guardia asignada no se puede volver a coger', !r.ok && r.codigo === 'ERROR_YA_ASIGNADA');
 r = pedir({ accion: 'registrarAusencia', token: tBea, fecha: LUNES, motivo: 'Asuntos propios', horas: [{ desde: '11:00', hasta: '12:00' }] });
-ok('si quien cubre se ausenta ese día, sus guardias pendientes se reparten de nuevo', r.ok && r.reasignadas === 1, JSON.stringify(r));
+ok('si quien cubre se ausenta ese día, se registra (sin decirle nada de la cobertura)', r.ok && r.reasignadas === undefined, JSON.stringify(r));
 dia = pedir({ accion: 'dia', token: tJefa, fecha: LUNES });
-ok('...y la 2ª hora queda sin cubrir (no hay nadie más libre)', dia.guardias.find((g: any) => g.id === g2.id).asignada === '');
+ok('...sus guardias pendientes se reparten de nuevo: la 2ª hora queda sin cubrir (no hay nadie más libre)', dia.guardias.find((g: any) => g.id === g2.id).asignada === '');
 ok('la ya hecha no cambia', dia.guardias.find((g: any) => g.id === g1.id).asignada === BEA);
 
 console.log('== Recuento y anulación');
