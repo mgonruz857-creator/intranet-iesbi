@@ -36,6 +36,7 @@ export default function MiHorario({ usuario, avisar }: Props) {
 
   return (
     <div className="space-y-4">
+      <style>{'@page { size: A4 portrait; margin: 12mm; }'}</style>
       <div className="flex flex-wrap items-center gap-2 print:hidden">
         {usuario.jefatura && profesorado.length > 0 && (
           <select value={email} onChange={(e) => setEmail(e.target.value)} aria-label="Docente"
@@ -58,7 +59,7 @@ export default function MiHorario({ usuario, avisar }: Props) {
           <p className="text-sm text-slate-500">No hay horario cargado. Se carga desde el PDF de Séneca en el Panel del centro.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-xs min-w-[640px]">
+            <table className="w-full border-collapse text-xs min-w-[640px] print:min-w-0">
               <thead>
                 <tr>
                   <th className="border border-slate-200 bg-slate-50 px-2 py-1.5 w-24 text-left">Hora</th>

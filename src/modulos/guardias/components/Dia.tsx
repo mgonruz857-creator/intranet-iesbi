@@ -104,6 +104,7 @@ function ParteDia({ fecha, guardias, cuadrante }: { fecha: string; guardias: Gua
   const sinCubrir = guardias.filter((g) => !g.asignada).length;
   return (
     <div className="hidden print:block text-black text-[11px]">
+      <style>{'@page { size: A4 portrait; margin: 12mm; }'}</style>
       <div className="flex items-end justify-between border-b-2 border-black pb-1 mb-3">
         <div>
           <div className="text-base font-bold">Parte de guardias</div>
