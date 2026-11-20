@@ -45,7 +45,7 @@ export default function CambiarClave({ cerrar, avisar }: Props) {
         {error && <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl p-3">{error}</p>}
         <div className="flex justify-end gap-2">
           <button type="button" onClick={cerrar} className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold hover:bg-slate-50">Cancelar</button>
-          <button disabled={enviando} className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold disabled:opacity-50">
+          <button disabled={enviando} className="px-4 py-2 rounded-xl bg-sky-700 hover:bg-sky-800 text-white text-sm font-semibold disabled:opacity-50">
             {enviando ? 'Guardando…' : 'Guardar'}
           </button>
         </div>

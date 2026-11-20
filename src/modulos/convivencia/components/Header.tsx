@@ -453,7 +453,7 @@ export const Header: React.FC<HeaderProps> = ({
                       className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-98 ${
                         isActive
                           ? 'bg-sky-700 text-white ring-2 ring-sky-400 ring-offset-1'
-                          : 'bg-sky-600 hover:bg-sky-700 text-white hover:shadow-xs'
+                          : 'bg-sky-700 hover:bg-sky-800 text-white hover:shadow-xs'
                       }`}
                       title={item.description}
                     >
@@ -504,7 +504,7 @@ export const Header: React.FC<HeaderProps> = ({
                       onNavigate(item.id);
                       setMobileMenuOpen(false);
                     }}
-                    className="flex items-center gap-2 w-full p-2.5 rounded-xl bg-sky-600 text-white font-bold text-xs shadow-xs"
+                    className="flex items-center gap-2 w-full p-2.5 rounded-xl bg-sky-700 text-white font-bold text-xs shadow-xs"
                   >
                     <PlusCircle className="w-4 h-4" />
                     <span>+ Nuevo Parte de Incidencia</span>
@@ -577,7 +577,7 @@ export const Header: React.FC<HeaderProps> = ({
             return (
               <button key={item.id} onClick={() => { onNavigate(item.id); setMobileMenuOpen(false); window.scrollTo({ top: 0 }); }}
                 className={`flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-2 min-h-[56px] text-[11px] font-semibold ${
-                  item.id === 'imponer' ? (activo ? 'text-white bg-sky-700' : 'text-white bg-sky-600') : activo ? 'text-sky-800 bg-sky-50' : 'text-slate-600'}`}
+                  item.id === 'imponer' ? (activo ? 'text-white bg-sky-700' : 'text-white bg-sky-700') : activo ? 'text-sky-800 bg-sky-50' : 'text-slate-600'}`}
                 aria-current={activo ? 'page' : undefined}>
                 {item.id === 'imponer' ? <PlusCircle className="w-5 h-5" /> : getViewIcon(item.id, false)}
                 <span className="truncate max-w-full px-1">{etiquetaCorta(item.id, item.label)}</span>

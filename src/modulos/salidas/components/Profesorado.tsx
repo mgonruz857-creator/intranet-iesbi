@@ -261,7 +261,7 @@ function ImportarHorario({ docentes, grupos, avisar, alGuardar }: ImportarProps)
           <div className="flex gap-2 justify-end">
             <button onClick={() => setPaginas([])} className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold hover:bg-slate-50">Descartar</button>
             <button onClick={guardar} disabled={guardando || !filas.length}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold disabled:opacity-50">
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-700 hover:bg-sky-800 text-white text-sm font-semibold disabled:opacity-50">
               <Save className="w-4 h-4" /> {guardando ? 'Guardando…' : 'Guardar horario en la hoja'}
             </button>
           </div>

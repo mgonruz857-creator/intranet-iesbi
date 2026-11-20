@@ -218,7 +218,7 @@ export const TutoriaView: React.FC<TutoriaViewProps> = ({ currentUser, alumnos, 
                           <button
                             type="button"
                             onClick={() => setAlumnoFiltro(alumnoFiltro === a.id_alumno ? '' : a.id_alumno)}
-                            className={`px-2.5 py-1 rounded-lg font-semibold cursor-pointer ${alumnoFiltro === a.id_alumno ? 'bg-sky-600 text-white' : 'bg-sky-50 text-sky-800 border border-sky-200 hover:bg-sky-100'}`}
+                            className={`px-2.5 py-1 rounded-lg font-semibold cursor-pointer ${alumnoFiltro === a.id_alumno ? 'bg-sky-700 text-white' : 'bg-sky-50 text-sky-800 border border-sky-200 hover:bg-sky-100'}`}
                           >
                             {alumnoFiltro === a.id_alumno ? 'Ver todos' : 'Ver sus partes'}
                           </button>

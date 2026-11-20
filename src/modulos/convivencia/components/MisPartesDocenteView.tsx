@@ -255,7 +255,7 @@ export const MisPartesDocenteView: React.FC<MisPartesDocenteViewProps> = ({
             <button
               type="button"
               onClick={onNavigateToImponer}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-xs transition-all cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-sky-700 hover:bg-sky-800 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-xs transition-all cursor-pointer"
             >
               <PlusCircle className="w-4 h-4" />
               <span>+ Nuevo Parte</span>
@@ -363,7 +363,7 @@ export const MisPartesDocenteView: React.FC<MisPartesDocenteViewProps> = ({
               <button
                 type="button"
                 onClick={onNavigateToImponer}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-sky-700 hover:bg-sky-800 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
               >
                 <PlusCircle className="w-4 h-4" />
                 <span>Registrar mi primer parte</span>

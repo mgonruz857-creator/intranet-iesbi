@@ -1052,7 +1052,7 @@ El Amrani Youssef,4º ESO D`;
                   setAltaError(null);
                   setModalAltaOpen(true);
                 }}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer shrink-0"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-sky-700 hover:bg-sky-800 text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer shrink-0"
               >
                 <Plus className="w-4 h-4" />
                 <span>+ Alta de Docente</span>
@@ -1229,7 +1229,7 @@ El Amrani Youssef,4º ESO D`;
                               </button>
 
                               {isAdminPrincipal ? (
-                                <span className="text-[10px] font-semibold text-slate-400 italic px-2">
+                                <span className="text-[10px] font-semibold text-slate-500 italic px-2">
                                   Admin Principal
                                 </span>
                               ) : isActivo ? (
@@ -1442,7 +1442,7 @@ El Amrani Youssef,4º ESO D`;
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-2 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-xl transition-colors cursor-pointer shadow-xs"
+                      className="px-4 py-2 text-xs font-bold text-white bg-sky-700 hover:bg-sky-800 rounded-xl transition-colors cursor-pointer shadow-xs"
                     >
                       Registrar Docente
                     </button>
@@ -1562,7 +1562,7 @@ El Amrani Youssef,4º ESO D`;
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-2 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-xl transition-colors cursor-pointer shadow-xs"
+                      className="px-4 py-2 text-xs font-bold text-white bg-sky-700 hover:bg-sky-800 rounded-xl transition-colors cursor-pointer shadow-xs"
                     >
                       Guardar Modificaciones
                     </button>
@@ -1710,7 +1710,7 @@ El Amrani Youssef,4º ESO D`;
                     setModalAltaAlumnoOpen(true);
                     setAltaAlumnoError(null);
                   }}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-sky-700 hover:bg-sky-800 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Alta Manual Alumno/a</span>
@@ -2106,7 +2106,7 @@ El Amrani Youssef,4º ESO D`;
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-2 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-xl transition-colors cursor-pointer shadow-xs"
+                      className="px-4 py-2 text-xs font-bold text-white bg-sky-700 hover:bg-sky-800 rounded-xl transition-colors cursor-pointer shadow-xs"
                     >
                       Registrar Alumno/a
                     </button>
@@ -2224,7 +2224,7 @@ El Amrani Youssef,4º ESO D`;
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-2 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-xl transition-colors cursor-pointer shadow-xs"
+                      className="px-4 py-2 text-xs font-bold text-white bg-sky-700 hover:bg-sky-800 rounded-xl transition-colors cursor-pointer shadow-xs"
                     >
                       Guardar Modificaciones
                     </button>
@@ -2499,7 +2499,7 @@ El Amrani Youssef,4º ESO D`;
             </p>
 
             <div className="mt-4 flex items-center justify-center gap-3">
-              <label className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-semibold cursor-pointer transition-colors shadow-xs">
+              <label className="px-4 py-2 bg-sky-700 hover:bg-sky-800 text-white rounded-xl text-xs font-semibold cursor-pointer transition-colors shadow-xs">
                 Seleccionar archivo (.ods, .xlsx, .csv)
                 <input
                   type="file"
@@ -2653,7 +2653,7 @@ El Amrani Youssef,4º ESO D`;
             <button
               onClick={handleRunImport}
               disabled={(!csvContent.trim() && (!odsLoadedRows || odsLoadedRows.length === 0) && (!odsLoadedProfesores || odsLoadedProfesores.length === 0))}
-              className="px-5 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-xs cursor-pointer"
+              className="px-5 py-2.5 bg-sky-700 hover:bg-sky-800 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-xs cursor-pointer"
             >
               Ejecutar Transformación & Ingesta (ETL)
             </button>

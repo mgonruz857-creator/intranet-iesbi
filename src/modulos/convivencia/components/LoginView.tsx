@@ -484,7 +484,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                         Recomendado
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                    <p className="text-[11px] text-slate-600 mt-0.5 leading-snug">
                       Sala de profesores, aulas, ordenadores de guardia. <strong>Cierra sesión tras 15 min de inactividad o al cerrar la ventana</strong>.
                     </p>
                   </div>
@@ -510,7 +510,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                       <Laptop className="w-3.5 h-3.5 text-slate-600 shrink-0" />
                       <span>Mi portátil personal privado</span>
                     </div>
-                    <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                    <p className="text-[11px] text-slate-600 mt-0.5 leading-snug">
                       Mantiene la sesión iniciada en este navegador privado para que no tengas que introducir tu contraseña continuamente.
                     </p>
                   </div>
@@ -528,7 +528,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                   password.trim().length === 0 ||
                   (isFirstTimeAccess && (password.length < 6 || password !== confirmPassword))
                 }
-                className="w-full flex items-center justify-center gap-2.5 py-3 px-4 bg-sky-600 hover:bg-sky-700 text-white font-bold text-sm rounded-xl shadow-xs hover:shadow transition-all cursor-pointer disabled:opacity-50 group"
+                className="w-full flex items-center justify-center gap-2.5 py-3 px-4 bg-sky-700 hover:bg-sky-800 text-white font-bold text-sm rounded-xl shadow-xs hover:shadow transition-all cursor-pointer disabled:opacity-50 group"
               >
                 {isLoading ? (
                   <>
@@ -562,7 +562,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
           </div>
 
           {/* RGPD & Legal Footer */}
-          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
             <div className="flex items-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5 text-sky-600" />
               <span>Decreto 327/2010 (ROF)</span>

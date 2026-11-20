@@ -344,7 +344,7 @@ export const DriveAuditModal: React.FC<DriveAuditModalProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="inline-flex items-center gap-1 px-3 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-semibold cursor-pointer"
+                  className="inline-flex items-center gap-1 px-3 py-1 bg-sky-700 hover:bg-sky-800 text-white rounded-xl text-xs font-semibold cursor-pointer"
                 >
                   <Check className="w-3.5 h-3.5" />
                   <span>Guardar Unidad Institucional</span>
@@ -378,7 +378,7 @@ export const DriveAuditModal: React.FC<DriveAuditModalProps> = ({
                 type="button"
                 disabled={isSimulatingSync}
                 onClick={handlePullOnlyFromDrive}
-                className="w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-[11px] font-semibold transition-colors cursor-pointer shadow-2xs"
+                className="w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-sky-700 hover:bg-sky-800 text-white rounded-lg text-[11px] font-semibold transition-colors cursor-pointer shadow-2xs"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>Recuperar Partes desde {ARCHIVO_DB_DRIVE}</span>
@@ -425,7 +425,7 @@ export const DriveAuditModal: React.FC<DriveAuditModalProps> = ({
               <button
                 type="button"
                 onClick={handleCopyScript}
-                className="inline-flex items-center gap-1.5 px-3 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-xs"
+                className="inline-flex items-center gap-1.5 px-3 py-1 bg-sky-700 hover:bg-sky-800 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-xs"
               >
                 {copiedScript ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                 <span>{copiedScript ? '¡Script Copiado!' : 'Copiar Script Autocreador'}</span>
@@ -527,7 +527,7 @@ export const DriveAuditModal: React.FC<DriveAuditModalProps> = ({
             />
             <button
               type="submit"
-              className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-semibold cursor-pointer shadow-xs"
+              className="px-3 py-1.5 bg-sky-700 hover:bg-sky-800 text-white rounded-xl text-xs font-semibold cursor-pointer shadow-xs"
             >
               Guardar Endpoint
             </button>
@@ -782,7 +782,7 @@ export const DriveAuditModal: React.FC<DriveAuditModalProps> = ({
             <button
               onClick={handleForceSync}
               disabled={isSimulatingSync}
-              className="inline-flex items-center gap-1.5 px-3 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-sky-700 hover:bg-sky-800 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isSimulatingSync ? 'animate-spin' : ''}`} />
               <span>Forzar Sincronización Inmediata</span>

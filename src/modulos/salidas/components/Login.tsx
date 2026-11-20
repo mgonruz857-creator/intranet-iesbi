@@ -102,7 +102,7 @@ export default function Login({ alEntrar }: Props) {
             </button>
           )}
           <button type="submit" disabled={esperando}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold disabled:opacity-60">
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-sky-700 hover:bg-sky-800 text-white text-sm font-semibold disabled:opacity-60">
             <LogIn className="w-4 h-4" />
             {esperando ? 'Comprobando…' : paso === 'correo' ? 'Continuar' : 'Entrar'}
           </button>

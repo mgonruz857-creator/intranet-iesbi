@@ -46,7 +46,7 @@ export default function Dia({ usuario, avisar }: Props) {
         <span className="text-sm font-semibold text-slate-700 capitalize">{fechaLarga(fecha)}</span>
         {fecha !== hoyTexto() && <button onClick={() => setFecha(hoyTexto())} className="text-xs font-semibold text-sky-700 hover:underline">Hoy</button>}
         <label className="ml-auto flex items-center gap-1.5 text-xs text-slate-600">
-          <input type="checkbox" checked={soloMias} onChange={(e) => setSoloMias(e.target.checked)} /> Solo las mías
+          <input type="checkbox" className="w-5 h-5 accent-sky-700" checked={soloMias} onChange={(e) => setSoloMias(e.target.checked)} /> Solo las mías
         </label>
         <button onClick={cargar} className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50" aria-label="Actualizar">
           <RefreshCw className="w-4 h-4" />

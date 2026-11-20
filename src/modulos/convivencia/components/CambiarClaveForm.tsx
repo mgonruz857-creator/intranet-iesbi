@@ -55,7 +55,7 @@ export const CambiarClaveForm: React.FC = () => {
             <p className={`text-[11px] font-medium ${mensaje.tipo === 'ok' ? 'text-emerald-700' : 'text-rose-700'}`}>{mensaje.texto}</p>
           )}
           <button type="submit" disabled={enviando}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-sky-600 hover:bg-sky-700 disabled:opacity-60 text-white font-bold text-xs rounded-xl cursor-pointer">
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-sky-700 hover:bg-sky-800 disabled:opacity-60 text-white font-bold text-xs rounded-xl cursor-pointer">
             {enviando && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             <span>Guardar nueva contraseña</span>
           </button>

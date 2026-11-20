@@ -121,6 +121,12 @@ más adelante `proyectoIntranet/PRODUCCION/`). Siempre en Mi unidad, mismo propi
       Ausencias; Mi horario por días en el móvil; sin jerga; correo de almacenamiento solo para la administración;
       nombre del docente en Salidas (1.3.1); «Es el horario de…» para sustitutos (`sustituye_a`, guardias 1.2.1).
 - [ ] Pegar Intranet.gs, Salidas.gs y Guardias.gs nuevos en API_Intranet_PRUEBAS y probar el cambio de curso (Miguel Ángel).
+- [x] Pruebas antes de producción (20/11/2026, `pruebas/preproduccion/`, `npm run test:preproduccion`): seguridad (44),
+      acceso (34), concurrencia (40 docentes a la vez), volumen (un curso de 750 alumnos y 5.000 partes: 3,8 MB),
+      resistencia (archivo estropeado, pestañas borradas, peticiones raras) y accesibilidad con axe-core en móvil y
+      ordenador (`accesibilidad.cjs`, con el servidor local). Arreglado: texto que empieza por `=` en las hojas de
+      salidas/guardias se guarda como texto (Salidas 1.3.2, Guardias 1.2.2); nadie coge dos guardias a la misma hora;
+      contraste de los botones azules (sky-700) y etiqueta del selector de docente del parte.
 
 Resumen de la propuesta:
 - Una única fuente de "datos del centro" (profesorado, alumnado, grupos, horarios, curso escolar) con un panel

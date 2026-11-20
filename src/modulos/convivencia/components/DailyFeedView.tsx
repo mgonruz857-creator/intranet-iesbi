@@ -316,7 +316,7 @@ export const DailyFeedView: React.FC<DailyFeedViewProps> = ({
 
             <button
               onClick={onNavigateToImponer}
-              className="inline-flex items-center gap-1.5 px-3 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold rounded-xl transition-colors shadow-xs cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-sky-700 hover:bg-sky-800 text-white text-xs font-semibold rounded-xl transition-colors shadow-xs cursor-pointer"
             >
               <span>+ Nuevo Parte (&lt;30s)</span>
             </button>
@@ -326,7 +326,7 @@ export const DailyFeedView: React.FC<DailyFeedViewProps> = ({
         {/* 4 Interactive & Clickable Metric Displays */}
         <div className="pt-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
               Resumen de la Jornada
             </span>
             <span className="text-xs text-sky-700 font-semibold">
@@ -458,7 +458,7 @@ export const DailyFeedView: React.FC<DailyFeedViewProps> = ({
               onClick={() => setFilterDate('')}
               className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition-colors cursor-pointer ${
                 filterDate === ''
-                  ? 'bg-sky-600 text-white shadow-2xs'
+                  ? 'bg-sky-700 text-white shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
               }`}
               title="Mostrar todos los partes de todos los días del curso"
@@ -470,7 +470,7 @@ export const DailyFeedView: React.FC<DailyFeedViewProps> = ({
               onClick={() => setFilterDate(today)}
               className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition-colors cursor-pointer ${
                 filterDate === today
-                  ? 'bg-sky-600 text-white shadow-2xs'
+                  ? 'bg-sky-700 text-white shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
               }`}
               title="Mostrar únicamente los partes de hoy"
@@ -518,7 +518,7 @@ export const DailyFeedView: React.FC<DailyFeedViewProps> = ({
 
         {/* Search input */}
         <div className="relative w-full sm:w-64">
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+          <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-2.5" />
           <input
             type="text"
             placeholder="Buscar por alumno, NIE o docente..."
@@ -555,7 +555,7 @@ export const DailyFeedView: React.FC<DailyFeedViewProps> = ({
               <button
                 type="button"
                 onClick={onNavigateToImponer}
-                className="px-4 py-2 bg-sky-600 text-white rounded-xl text-xs font-semibold hover:bg-sky-700 transition-colors cursor-pointer"
+                className="px-4 py-2 bg-sky-700 text-white rounded-xl text-xs font-semibold hover:bg-sky-800 transition-colors cursor-pointer"
               >
                 Registrar nuevo parte ahora
               </button>
@@ -700,7 +700,7 @@ export const DailyFeedView: React.FC<DailyFeedViewProps> = ({
                           onPrintSingleParte(sancion);
                         }}
                         title="Imprimir Parte Oficial de Sanción (Junta de Andalucía)"
-                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-sky-600 hover:bg-sky-700 text-white transition-colors cursor-pointer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-sky-700 hover:bg-sky-800 text-white transition-colors cursor-pointer"
                       >
                         <Printer className="w-3.5 h-3.5" />
                         <span>Imprimir Parte</span>
@@ -711,7 +711,7 @@ export const DailyFeedView: React.FC<DailyFeedViewProps> = ({
                         <button
                           onClick={() => onUpdateTramitacion(sancion.id_sancion, 'RESUELTO', 'Tramitación completada y archivada.')}
                           title="Marcar como resuelto"
-                          className="p-1 rounded text-slate-400 hover:text-sky-700 hover:bg-sky-50 transition-colors cursor-pointer"
+                          className="p-1 rounded text-slate-500 hover:text-sky-700 hover:bg-sky-50 transition-colors cursor-pointer"
                         >
                           <CheckCircle className="w-4 h-4" />
                         </button>
@@ -722,7 +722,7 @@ export const DailyFeedView: React.FC<DailyFeedViewProps> = ({
                         <button
                           onClick={() => setParteToEdit(sancion)}
                           title="Modificar Datos / Tipificación del Parte (Equipo de Convivencia)"
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-sky-700 hover:bg-sky-50 transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-sky-700 hover:bg-sky-50 transition-colors cursor-pointer"
                         >
                           <Pencil className="w-4 h-4" />
                         </button>
@@ -736,7 +736,7 @@ export const DailyFeedView: React.FC<DailyFeedViewProps> = ({
                             setDeleteMotivo('Estimación de alegaciones / Corrección de error');
                           }}
                           title="Eliminar Parte Oficial (Equipo de Convivencia)"
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -769,7 +769,7 @@ export const DailyFeedView: React.FC<DailyFeedViewProps> = ({
               </div>
               <button
                 onClick={() => setActiveKpiModal(null)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-sky-100 transition-colors cursor-pointer"
+                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-sky-100 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -815,7 +815,7 @@ export const DailyFeedView: React.FC<DailyFeedViewProps> = ({
             {/* Search Filter Inside Modal */}
             <div className="p-4 border-b border-slate-100 flex items-center justify-between gap-3">
               <div className="relative flex-1">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
                 <input
                   type="text"
                   placeholder="Buscar por alumno, materia, docente..."
@@ -864,7 +864,7 @@ export const DailyFeedView: React.FC<DailyFeedViewProps> = ({
                             </td>
                             <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">
                               <div>{s.tramo_horario.split('(')[0]}</div>
-                              {s.hora_incidente && <div className="text-[10px] text-slate-400">{s.hora_incidente}h</div>}
+                              {s.hora_incidente && <div className="text-[10px] text-slate-500">{s.hora_incidente}h</div>}
                             </td>
                             <td className="py-2.5 px-3 font-semibold text-slate-900">
                               {alm ? (
@@ -913,7 +913,7 @@ export const DailyFeedView: React.FC<DailyFeedViewProps> = ({
                                       setParteToEdit(s);
                                     }}
                                     title="Modificar parte oficial"
-                                    className="p-1 text-slate-400 hover:text-sky-700 hover:bg-sky-50 rounded transition-colors cursor-pointer"
+                                    className="p-1 text-slate-500 hover:text-sky-700 hover:bg-sky-50 rounded transition-colors cursor-pointer"
                                   >
                                     <Pencil className="w-3.5 h-3.5" />
                                   </button>
@@ -929,7 +929,7 @@ export const DailyFeedView: React.FC<DailyFeedViewProps> = ({
                                       }
                                     }}
                                     title="Eliminar parte oficial"
-                                    className="p-1 text-slate-400 hover:text-rose-700 hover:bg-rose-50 rounded transition-colors cursor-pointer"
+                                    className="p-1 text-slate-500 hover:text-rose-700 hover:bg-rose-50 rounded transition-colors cursor-pointer"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
                                   </button>
@@ -979,7 +979,7 @@ export const DailyFeedView: React.FC<DailyFeedViewProps> = ({
               </div>
               <button
                 onClick={() => setActiveKpiModal(null)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-rose-100 transition-colors cursor-pointer"
+                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-rose-100 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1047,7 +1047,7 @@ export const DailyFeedView: React.FC<DailyFeedViewProps> = ({
                               setActiveKpiModal(null);
                               setActiveCallModal({ sancion: s, alumno: alm });
                             }}
-                            className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                            className="px-3 py-1.5 bg-sky-700 hover:bg-sky-800 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer"
                           >
                             Registrar Llamada
                           </button>
@@ -1102,7 +1102,7 @@ export const DailyFeedView: React.FC<DailyFeedViewProps> = ({
               </div>
               <button
                 onClick={() => setActiveKpiModal(null)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-amber-100 transition-colors cursor-pointer"
+                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-amber-100 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1112,7 +1112,7 @@ export const DailyFeedView: React.FC<DailyFeedViewProps> = ({
             <div className="p-5 overflow-y-auto flex-1 space-y-4">
               {statsDay.pacList.length === 0 ? (
                 <div className="p-8 text-center bg-slate-50 border border-slate-200 rounded-xl text-slate-600">
-                  <BookOpen className="w-10 h-10 text-slate-400 mx-auto mb-2" />
+                  <BookOpen className="w-10 h-10 text-slate-500 mx-auto mb-2" />
                   <h4 className="font-bold text-sm">Sin derivaciones al Aula PAC</h4>
                   <p className="text-xs text-slate-500 mt-1">
                     No se ha derivado a ningún alumno a la sala de convivencia en la fecha seleccionada.
@@ -1229,7 +1229,7 @@ export const DailyFeedView: React.FC<DailyFeedViewProps> = ({
               </div>
               <button
                 onClick={() => setActiveKpiModal(null)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
+                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1441,7 +1441,7 @@ export const DailyFeedView: React.FC<DailyFeedViewProps> = ({
               <button
                 type="button"
                 onClick={handleConfirmCall}
-                className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+                className="px-4 py-2 bg-sky-700 hover:bg-sky-800 text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer"
               >
                 Guardar y Marcar Notificado
               </button>
@@ -1474,7 +1474,7 @@ export const DailyFeedView: React.FC<DailyFeedViewProps> = ({
                 type="button"
                 disabled={isDeleting}
                 onClick={() => setParteToDelete(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 cursor-pointer"
+                className="p-1.5 text-slate-500 hover:text-slate-600 rounded-xl hover:bg-slate-100 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>

@@ -871,7 +871,7 @@ export default function App() {
                   AuthService.recordActivity();
                   setInactivityWarningSeconds(null);
                 }}
-                className="w-full sm:flex-1 py-3 px-4 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                className="w-full sm:flex-1 py-3 px-4 bg-sky-700 hover:bg-sky-800 text-white font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
               >
                 <ShieldCheck className="w-4 h-4" />
                 <span>Continuar conectado</span>

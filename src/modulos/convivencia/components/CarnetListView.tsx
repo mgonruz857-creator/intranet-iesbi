@@ -519,7 +519,7 @@ export const CarnetListView: React.FC<CarnetListViewProps> = ({
               onClick={() => setFiltroRapido('HOY')}
               className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
                 filtroRapido === 'HOY'
-                  ? 'bg-sky-600 text-white shadow-xs'
+                  ? 'bg-sky-700 text-white shadow-xs'
                   : 'bg-sky-50 hover:bg-sky-100 text-sky-900'
               }`}
             >
@@ -1161,7 +1161,7 @@ export const CarnetListView: React.FC<CarnetListViewProps> = ({
                     setHistoryModalAlumno(null);
                     onSelectAlumnoForParte(id);
                   }}
-                  className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold cursor-pointer shadow-xs"
+                  className="px-4 py-2 bg-sky-700 hover:bg-sky-800 text-white rounded-xl text-xs font-bold cursor-pointer shadow-xs"
                 >
                   Imponer Nuevo Parte
                 </button>
@@ -1262,7 +1262,7 @@ export const CarnetListView: React.FC<CarnetListViewProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-sky-600 text-white font-bold rounded-xl shadow-xs cursor-pointer hover:bg-sky-700"
+                  className="px-4 py-2 bg-sky-700 text-white font-bold rounded-xl shadow-xs cursor-pointer hover:bg-sky-800"
                 >
                   Registrar Restitución
                 </button>
@@ -1497,7 +1497,7 @@ export const CarnetListView: React.FC<CarnetListViewProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5"
+                  className="px-4 py-2 bg-sky-700 hover:bg-sky-800 text-white font-bold rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5"
                 >
                   <Check className="w-4 h-4" />
                   <span>Guardar Cambios</span>

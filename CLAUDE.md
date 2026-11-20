@@ -76,6 +76,9 @@ La intranet copia código de las apps existentes, pero **no escribe en ellas**:
 - `npm run test:salidas`: servidor de salidas (simulador) y lector de horarios de Séneca.
 - `npm run test:acceso`: vales entre servidores (`acceso_unico`), servidor central (`datos_centro`) y salidas leyendo
   del servidor central (`salidas_central`), guardias (`guardias`) y el servidor único (`servidor_unico`).
+- `npm run test:preproduccion`: pruebas previas a producción del servidor único con el centro ficticio (seguridad,
+  acceso, concurrencia, volumen, resistencia). La accesibilidad se prueba aparte con el servidor local:
+  `AXE=<axe.min.js> node pruebas/preproduccion/accesibilidad.cjs`.
 - `npm test`: todas las anteriores.
 - Probar la intranet entera sin Google (servidores simulados): ver la cabecera de `pruebas/convivencia/servidor-local.mts`.
 - `npm run test:seguridad`: auditoría de convivencia. En PRUEBAS fallan SEC-11 y SEC-13, igual que en

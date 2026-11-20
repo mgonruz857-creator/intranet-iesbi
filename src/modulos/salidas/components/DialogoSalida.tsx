@@ -95,7 +95,7 @@ export default function DialogoSalida({ alumno, estado, cerrar, hecho, fallo }: 
         <div className="flex justify-end gap-2">
           <button onClick={cerrar} className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold hover:bg-slate-50">Cancelar</button>
           <button onClick={autorizar} disabled={!valido || enviando}
-            className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+            className="px-4 py-2 rounded-xl bg-sky-700 hover:bg-sky-800 text-white text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
             {enviando ? 'Autorizando…' : duplicado ? 'Autorizar salida excepcional' : 'Autorizar salida'}
           </button>
         </div>

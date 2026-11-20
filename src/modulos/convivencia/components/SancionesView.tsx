@@ -202,7 +202,7 @@ export const SancionesView: React.FC<SancionesViewProps> = ({
           <button type="button" onClick={() => exp.completado && generarPdf(exp)}
             disabled={!exp.completado || generando === exp.id_expediente}
             title={exp.completado ? 'Descargar el parte de sanción' : 'Disponible cuando estén marcados los cuatro trámites'}
-            className="inline-flex items-center gap-1.5 px-3 py-2 bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 disabled:text-slate-600 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold cursor-pointer">
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-sky-700 hover:bg-sky-800 disabled:bg-slate-300 disabled:text-slate-600 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold cursor-pointer">
             <FileDown className="w-3.5 h-3.5" /> {generando === exp.id_expediente ? 'Generando…' : 'Generar parte de sanción (PDF)'}
           </button>
           {!exp.completado && (
@@ -234,7 +234,7 @@ export const SancionesView: React.FC<SancionesViewProps> = ({
           <p className="text-xs text-slate-500 mt-0.5">Expedientes de sanción (Decreto 327/2010, art. 37), trámites y parte de sanción para la familia.</p>
         </div>
         <button type="button" onClick={() => { setErrorForm(null); setFormulario(nuevoFormulario()); }}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold cursor-pointer shrink-0">
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-sky-700 hover:bg-sky-800 text-white rounded-xl text-xs font-bold cursor-pointer shrink-0">
           <Plus className="w-4 h-4" /> Nuevo expediente
         </button>
       </div>
@@ -350,7 +350,7 @@ export const SancionesView: React.FC<SancionesViewProps> = ({
 
             <div className="flex justify-end gap-2 pt-1">
               <button type="button" onClick={() => setFormulario(null)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl font-semibold cursor-pointer">Cancelar</button>
-              <button type="submit" className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-bold cursor-pointer">
+              <button type="submit" className="px-4 py-2 bg-sky-700 hover:bg-sky-800 text-white rounded-xl font-bold cursor-pointer">
                 {formulario.id_expediente ? 'Guardar cambios' : 'Abrir expediente'}
               </button>
             </div>

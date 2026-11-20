@@ -129,7 +129,7 @@ export const OfficialPartePrintModal: React.FC<OfficialPartePrintModalProps> = (
               className={`inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer ${
                 isGeneratingPdf 
                   ? 'bg-sky-400 text-white cursor-wait' 
-                  : 'bg-sky-600 hover:bg-sky-700 text-white active:scale-98'
+                  : 'bg-sky-700 hover:bg-sky-800 text-white active:scale-98'
               }`}
               title="Descargar archivo PDF oficial listo para imprimir o enviar"
             >
@@ -411,7 +411,7 @@ export const OfficialPartePrintModal: React.FC<OfficialPartePrintModalProps> = (
               type="button"
               onClick={handleDownloadPdf}
               disabled={isGeneratingPdf}
-              className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-2 bg-sky-700 hover:bg-sky-800 text-white font-bold rounded-xl transition-colors inline-flex items-center gap-1.5 cursor-pointer"
             >
               {isGeneratingPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
               <span>Descargar PDF</span>

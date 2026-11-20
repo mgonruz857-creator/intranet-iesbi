@@ -1266,7 +1266,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
                             : isPodium2
                             ? 'bg-amber-500 text-white shadow-xs'
                             : isPodium3
-                            ? 'bg-sky-600 text-white'
+                            ? 'bg-sky-700 text-white'
                             : 'bg-slate-100 text-slate-700'
                         }`}
                       >
