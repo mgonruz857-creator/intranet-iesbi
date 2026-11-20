@@ -20,6 +20,7 @@ export interface Salida {
   apellidos: string;
   grupo: string;
   docente: string;
+  docente_nombre?: string;
   inicio: number;
   fin: number | null;
   hora: string;

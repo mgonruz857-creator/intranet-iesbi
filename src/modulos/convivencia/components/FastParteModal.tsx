@@ -130,8 +130,21 @@ export const FastParteModal: React.FC<FastParteModalProps> = ({
   }, [profesores]);
 
   // 1. Grupo y Alumno
+  // Grupos del docente según su horario (y el de la hora actual), para no tener que buscarlo entre todos
+  const { grupoAhora, misGrupos } = useMemo(() => {
+    const filas = StorageService.getMiHorario(currentUser.email);
+    const ahora = new Date();
+    const dia = ahora.getDay();
+    const hhmm = `${String(ahora.getHours()).padStart(2, '0')}:${String(ahora.getMinutes()).padStart(2, '0')}`;
+    const fila = filas.find((f) => Number(f[0]) === dia && f[1] <= hhmm && hhmm < f[2]);
+    const validos = new Set(LISTA_GRUPOS_OFICIALES.map((g) => g.codigo as string));
+    const grupos = [...new Set([...(currentUser.tutor_de_grupo ? [currentUser.tutor_de_grupo] : []), ...filas.map((f) => f[3])])]
+      .filter((g) => validos.has(g)) as GrupoEducativo[];
+    return { grupoAhora: fila && validos.has(fila[3]) ? (fila[3] as GrupoEducativo) : null, misGrupos: grupos };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser.email]);
   const [selectedGrupo, setSelectedGrupo] = useState<GrupoEducativo>(
-    (alumnoInicial?.grupo as GrupoEducativo) || (currentUser.tutor_de_grupo as GrupoEducativo) || '1ESO_A'
+    (alumnoInicial?.grupo as GrupoEducativo) || grupoAhora || (currentUser.tutor_de_grupo as GrupoEducativo) || misGrupos[0] || '1ESO_A'
   );
   const [selectedAlumnoId, setSelectedAlumnoId] = useState<string>(alumnoInicial?.id_alumno || '');
   const [searchAlumnoTerm, setSearchAlumnoTerm] = useState<string>('');
@@ -407,10 +420,10 @@ export const FastParteModal: React.FC<FastParteModalProps> = ({
         <div className="bg-white border border-slate-200 rounded-xl p-3 text-xs text-slate-600 space-y-1">
           <div className="font-semibold text-slate-800 flex items-center gap-1.5">
             <Info className="w-4 h-4 text-sky-600" />
-            <span>Documentación Oficial Generada</span>
+            <span>Parte guardado</span>
           </div>
           <p className="text-[11px]">
-            Conforme a la <strong>V0 del Módulo de Convivencia</strong>, el cálculo de saldo y el histórico se han actualizado automáticamente. La aplicación no impone decisiones de expulsión; el parte queda listo para su consulta o firma en Jefatura de Estudios.
+            Jefatura de Estudios ya lo ve y los puntos del alumno se han actualizado. Si quiere, puede imprimirlo desde aquí.
           </p>
         </div>
 
@@ -457,17 +470,13 @@ export const FastParteModal: React.FC<FastParteModalProps> = ({
       <div className="border-b border-sky-100 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider bg-sky-100 text-sky-800 px-2 py-0.5 rounded-full">
-              Versión 0 · Ágil &lt; 30s
-            </span>
-            <span className="text-xs text-slate-400">·</span>
             <span className="text-xs font-semibold text-slate-600">IES Blas Infante</span>
           </div>
           <h1 className="text-lg font-bold text-slate-900 mt-1">
-            Registro Rápido de Parte de Convivencia
+            Nuevo parte de convivencia
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Flujo simplificado: Alumno/a → Tipo de Conducta → Hechos → Medida Inmediata → Enviar
+            Elija alumno, conducta y qué ha pasado, y pulse «Registrar parte».
           </p>
         </div>
 
@@ -557,28 +566,59 @@ export const FastParteModal: React.FC<FastParteModalProps> = ({
             </span>
           </div>
 
-          {/* Selector de Grupo Rápido con categorías */}
+          {/* Grupo: el de la hora actual según su horario sale elegido; sus otros grupos a mano; el resto en un desplegable */}
           <div className="space-y-2">
-            <div className="flex flex-wrap gap-1.5 p-1.5 bg-slate-100 rounded-xl max-h-36 overflow-y-auto">
-              {LISTA_GRUPOS_OFICIALES.map(item => (
-                <button
-                  key={item.codigo}
-                  type="button"
-                  onClick={() => {
-                    setSelectedGrupo(item.codigo);
-                    setSelectedAlumnoId('');
-                  }}
-                  className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-colors cursor-pointer ${
-                    selectedGrupo === item.codigo
-                      ? 'bg-sky-600 text-white shadow-xs'
-                      : 'bg-white hover:bg-slate-200 text-slate-700 border border-slate-200/60'
-                  }`}
-                  title={item.descripcion}
+            {grupoAhora && (
+              <p className="text-xs text-slate-600">
+                Ahora tiene clase con <strong>{etiquetaGrupo(grupoAhora)}</strong> (según su horario).
+              </p>
+            )}
+            {misGrupos.length > 0 ? (
+              <div className="flex flex-wrap gap-2 items-center">
+                {[...new Set([...misGrupos, selectedGrupo])].map((codigo) => (
+                  <button
+                    key={codigo}
+                    type="button"
+                    onClick={() => { setSelectedGrupo(codigo); setSelectedAlumnoId(''); }}
+                    className={`min-h-[44px] px-4 text-sm font-bold rounded-xl transition-colors cursor-pointer ${
+                      selectedGrupo === codigo ? 'bg-sky-600 text-white shadow-xs' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-300'
+                    }`}
+                  >
+                    {etiquetaGrupo(codigo)}
+                  </button>
+                ))}
+                <select
+                  aria-label="Otro grupo"
+                  value=""
+                  onChange={(e) => { if (e.target.value) { setSelectedGrupo(e.target.value as GrupoEducativo); setSelectedAlumnoId(''); } }}
+                  className="min-h-[44px] px-3 text-sm rounded-xl border border-slate-300 bg-white text-slate-700"
                 >
-                  {item.etiqueta}
-                </button>
-              ))}
-            </div>
+                  <option value="">Otro grupo…</option>
+                  {LISTA_GRUPOS_OFICIALES.map((item) => <option key={item.codigo} value={item.codigo}>{item.etiqueta}</option>)}
+                </select>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-1.5 p-1.5 bg-slate-100 rounded-xl max-h-48 overflow-y-auto">
+                {LISTA_GRUPOS_OFICIALES.map(item => (
+                  <button
+                    key={item.codigo}
+                    type="button"
+                    onClick={() => {
+                      setSelectedGrupo(item.codigo);
+                      setSelectedAlumnoId('');
+                    }}
+                    className={`min-h-[40px] px-3 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
+                      selectedGrupo === item.codigo
+                        ? 'bg-sky-600 text-white shadow-xs'
+                        : 'bg-white hover:bg-slate-200 text-slate-700 border border-slate-200/60'
+                    }`}
+                    title={item.descripcion}
+                  >
+                    {item.etiqueta}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Lista de Alumnos del Grupo */}
@@ -1002,7 +1042,7 @@ export const FastParteModal: React.FC<FastParteModalProps> = ({
               <span>Medida Inmediata Adoptada</span>
             </label>
             <span className="text-[11px] text-slate-500">
-              Opciones oficiales V0
+              Elija una
             </span>
           </div>
 
@@ -1146,3 +1186,7 @@ export const FastParteModal: React.FC<FastParteModalProps> = ({
     </div>
   );
 };
+
+function etiquetaGrupo(codigo: string): string {
+  return LISTA_GRUPOS_OFICIALES.find((g) => g.codigo === codigo)?.etiqueta || codigo;
+}

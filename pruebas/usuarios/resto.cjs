@@ -116,14 +116,13 @@ const PERFILES = {
     await paso('Mira "Mi horario": ¿le aparece el de Elena?', async () => {
       await p.click('text=Guardias'); await p.waitForTimeout(7000);
       await p.click('text=Mi horario'); await p.waitForTimeout(3000);
-      const t = await texto(); return `clases: ${(t.match(/ESO|BACH/g) || []).length}; menciona a la titular: ${/Elena|Titular/.test(t)}`;
+      const t = await texto(); return `pestañas de días: ${await p.locator('[role=tab]').count()}; menciona a la titular: ${/Elena|Titular/.test(t)}; ${t.match(/Es el horario de[^.]*/)?.[0]}`;
     });
     await paso('Entra en Convivencia: ¿tiene la tutoría de 3º ESO A?', async () => {
       await p.goto(URL + '/#/convivencia'); await p.waitForTimeout(7000);
-      if (!(await p.locator('text=Mi Tutoría').first().isVisible())) await p.click('[aria-label="Abrir menú"]').catch(() => {});
-      await p.waitForTimeout(500);
-      const vis = await p.locator('text=Mi Tutoría').first().isVisible().catch(() => false);
-      if (vis) { await p.locator('text=Mi Tutoría').first().click(); await p.waitForTimeout(2500); }
+      const boton = p.locator('nav[aria-label="Secciones de Convivencia"] button', { hasText: 'Mi tutoría' });
+      const vis = await boton.isVisible().catch(() => false);
+      if (vis) { await boton.click(); await p.waitForTimeout(2500); }
       return `Mi Tutoría visible: ${vis}; ${(await texto()).match(/3º? ?ESO ?A[^.]{0,80}/)?.[0]}`;
     });
     guardar(diario); await p.context().close();
@@ -132,7 +131,11 @@ const PERFILES = {
   // Elena, la titular de baja, intenta entrar desde casa.
   async elena(b) {
     const { p, diario, paso, texto } = await abrir(b, 'elena', true);
-    await paso('Intenta entrar estando de baja', async () => { await entrar(p, 'elena.titular.ficticia' + D, 'Elena2026'); return (await texto()).match(/(sustitu|baja|bloquead|no puede|acceso)[^.]{0,160}/i)?.[0] || (await texto()).slice(0, 200); });
+    await paso('Intenta entrar estando de baja', async () => {
+      await entrar(p, 'elena.titular.ficticia' + D, 'Elena2026');
+      const aviso = p.locator('[role=alert]').first(); const caja = await aviso.boundingBox();
+      return `${(await aviso.innerText()).replace(/\s+/g, ' ')} — visible sin desplazarse: ${!!caja && caja.y >= 0 && caja.y + caja.height <= p.viewportSize().height}`;
+    });
     guardar(diario); await p.context().close();
   },
 

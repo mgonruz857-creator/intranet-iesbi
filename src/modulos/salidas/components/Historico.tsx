@@ -101,7 +101,7 @@ export default function Historico({ avisar }: Props) {
                   <td className={'p-2 whitespace-nowrap ' + (seg !== null && seg > MINUTOS_MAXIMOS * 60 && s.estado === 'COMPLETED' ? 'text-red-600 font-semibold' : '')}>
                     {seg === null || s.estado !== 'COMPLETED' ? '—' : duracion(seg)}
                   </td>
-                  <td className="p-2 break-all text-xs">{s.docente}</td>
+                  <td className="p-2 text-xs">{s.docente_nombre || s.docente}</td>
                   <td className="p-2 text-xs">{motivo}</td>
                   <td className="p-2"><span className={'inline-block text-[11px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ' + estilo}>{txt}</span></td>
                 </tr>

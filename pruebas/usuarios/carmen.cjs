@@ -54,11 +54,8 @@ const { chromium, URL, abrir, botonesPequenos, desborda, guardar } = require('./
   });
   await paso('Va a "Mis Partes Puestos" para comprobar que está (y que no hay dos)', async () => {
     await p.click('text=Finalizar'); await p.waitForTimeout(1500);
-    const visible = await p.locator('text=Mis Partes Puestos').first().isVisible();
-    if (!visible) await p.click('[aria-label="Abrir menú"]');
-    await p.waitForTimeout(500);
-    await p.locator('text=Mis Partes Puestos').first().click(); await p.waitForTimeout(2500);
-    diario.notas.push({ menu_oculto_en_movil: !visible });
+    // Lo busca en la barra de abajo del móvil
+    await p.locator('nav[aria-label="Secciones de Convivencia"] button', { hasText: 'Mis partes' }).click(); await p.waitForTimeout(2500);
     const t = await texto();
     return `veces que aparece RUIZ PRUEBA: ${(t.match(/RUIZ PRUEBA/g) || []).length}`;
   });

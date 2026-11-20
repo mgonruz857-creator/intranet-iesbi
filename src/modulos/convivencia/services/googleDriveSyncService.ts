@@ -43,6 +43,7 @@ export interface DriveDatabaseState {
   reset_credenciales_emails?: string[];
   curso_actual?: string;
   cursos_archivados?: unknown[];
+  mi_horario?: unknown[];
 }
 
 export class GoogleDriveSyncService {
@@ -208,6 +209,7 @@ export class GoogleDriveSyncService {
       // Curso escolar (lo decide el servidor; se cambia desde el Panel del centro) y cursos ya cerrados
       if (typeof remoteData.curso_actual === 'string') StorageService.setCursoActual(remoteData.curso_actual);
       if (Array.isArray(remoteData.cursos_archivados)) StorageService.setCursosArchivadosServidor(remoteData.cursos_archivados);
+      if (Array.isArray(remoteData.mi_horario)) StorageService.setMiHorario(AuthService.getCurrentUser()?.email || '', remoteData.mi_horario);
 
       let localHasPendingData = false;
 

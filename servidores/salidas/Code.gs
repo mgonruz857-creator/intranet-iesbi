@@ -35,7 +35,7 @@
 
 // ───────────────────────── Configuración ─────────────────────────
 
-var VERSION = '1.3.0';
+var VERSION = '1.3.1';
 var ZONA = 'Europe/Madrid';
 var DOMINIO = '@g.educaand.es';
 var CUPO_GLOBAL = 5;
@@ -477,7 +477,7 @@ function autorizar_(usuario, datos, ahora) {
     return {
       ok: false, codigo: 'DUPLICADO', is_duplicate: true,
       previous_teacher: ultima[H.docente], time: horaDe_(ultima[H.inicio]), veces: previas.length,
-      mensaje: 'Este alumno ya salió en este bloque a las ' + horaDe_(ultima[H.inicio]) + ' (autorizó ' + ultima[H.docente] + ').'
+      mensaje: 'Este alumno ya salió en este bloque a las ' + horaDe_(ultima[H.inicio]) + ' (autorizó ' + nombreDocente_(ultima[H.docente]) + ').'
     };
   }
 
@@ -960,13 +960,19 @@ function fallo_(codigo, extra, mensaje) {
 
 function codigoDeError_(err) { return String(err && err.message || err); }
 
+/** Nombre del docente para mostrarlo (en vez de su correo). */
+function nombreDocente_(email) {
+  var p = profesorado_()[String(email || '').toLowerCase()];
+  return p && p.nombre ? p.nombre : String(email || '');
+}
+
 function salidaParaVista_(f, alumnos, usuario, ahora) {
   var a = alumnos[f[H.alumno]] || { nombre: '', apellidos: '(alumno dado de baja)' };
   var inicio = comoFecha_(f[H.inicio]);
   var fin = f[H.fin] ? comoFecha_(f[H.fin]) : null;
   return {
     exit_id: f[H.id], alumno: f[H.alumno], nombre: a.nombre, apellidos: a.apellidos, grupo: f[H.aula],
-    docente: f[H.docente], inicio: inicio.getTime(), fin: fin ? fin.getTime() : null,
+    docente: f[H.docente], docente_nombre: nombreDocente_(f[H.docente]), inicio: inicio.getTime(), fin: fin ? fin.getTime() : null,
     hora: horaDe_(inicio), hora_fin: fin ? horaDe_(fin) : '',
     bloque: f[H.bloque], preferente: f[H.preferente] === true, justificacion: String(f[H.justificacion] || ''),
     excepcional: f[H.excepcional] === true, justificacion_excepcional: String(f[H.justificacion_excepcional] || ''),

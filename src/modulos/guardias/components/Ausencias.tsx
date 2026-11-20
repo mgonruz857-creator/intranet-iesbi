@@ -106,11 +106,19 @@ export default function Ausencias({ usuario, avisar }: Props) {
         ) : !horas.length ? (
           <p className="text-sm text-slate-500">No hay clases en el horario para {fechaLarga(fecha)}.</p>
         ) : (
+          <>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => setHoras((x) => x && x.map((h) => ({ ...h, marcada: true })))}
+              className="min-h-[40px] px-4 rounded-xl border border-slate-300 text-sm font-semibold hover:bg-slate-50">Todo el día</button>
+            <button type="button" onClick={() => setHoras((x) => x && x.map((h) => ({ ...h, marcada: false })))}
+              className="min-h-[40px] px-4 rounded-xl border border-slate-300 text-sm font-semibold hover:bg-slate-50">Ninguna</button>
+            <span className="text-xs text-slate-500 self-center">Marque las horas en las que no va a estar.</span>
+          </div>
           <ul className="space-y-2">
             {horas.map((h, i) => (
               <li key={h.desde} className={'rounded-xl border p-3 space-y-2 ' + (h.marcada ? 'border-sky-200 bg-sky-50/40' : 'border-slate-200')}>
-                <label className="flex items-center gap-2 text-sm font-semibold">
-                  <input type="checkbox" checked={h.marcada} onChange={(e) => cambiar(i, { marcada: e.target.checked })} />
+                <label className="flex items-center gap-3 text-sm font-semibold min-h-[40px] cursor-pointer">
+                  <input type="checkbox" className="w-6 h-6 shrink-0 accent-sky-700" checked={h.marcada} onChange={(e) => cambiar(i, { marcada: e.target.checked })} />
                   <span className="tabular-nums">{h.desde}–{h.hasta}</span>
                   <span>{etiquetaGrupo(h.grupo)}</span>
                   {h.aula && <span className="font-normal text-slate-500">· Aula {h.aula}</span>}
@@ -129,6 +137,7 @@ export default function Ausencias({ usuario, avisar }: Props) {
               </li>
             ))}
           </ul>
+          </>
         )}
         <div className="flex justify-end">
           <button onClick={enviar} disabled={enviando || !horas?.some((h) => h.marcada)}

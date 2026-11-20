@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   User,
   RefreshCw,
@@ -69,6 +70,12 @@ export const Header: React.FC<HeaderProps> = ({
   const isAdmin = AuthService.isAdmin(currentUser);
   const isShared = AuthService.isSharedSession();
   const navItems = AuthService.getAllowedNavItems(currentUser);
+
+  // Hueco abajo para que la barra inferior del móvil no tape el final de la página
+  useEffect(() => {
+    document.body.classList.add('con-barra-inferior');
+    return () => document.body.classList.remove('con-barra-inferior');
+  }, []);
 
   // Friendly role descriptions
   const getRolePresentation = (prof: Profesor) => {
@@ -210,7 +217,8 @@ export const Header: React.FC<HeaderProps> = ({
                     }
                   }}
                   title="Refrescar datos en tiempo real desde la base de datos de Google Drive (sin caché)"
-                  className="flex items-center gap-1 px-2 py-1.5 text-xs font-semibold text-slate-600 hover:text-sky-800 bg-white hover:bg-sky-50 border border-slate-200 hover:border-sky-300 rounded-xl transition-all cursor-pointer shadow-2xs"
+                  aria-label="Actualizar datos"
+                  className="hidden sm:flex items-center gap-1 px-2 py-1.5 text-xs font-semibold text-slate-600 hover:text-sky-800 bg-white hover:bg-sky-50 border border-slate-200 hover:border-sky-300 rounded-xl transition-all cursor-pointer shadow-2xs"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${isSyncingNow ? 'animate-spin text-sky-600' : ''}`} />
                   <span className="hidden xl:inline text-[11px]">Actualizar</span>
@@ -235,7 +243,8 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 onClick={onOpenManualModal}
                 title="Manual de funcionamiento del sistema (Docente y Equipo Directivo)"
-                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:text-sky-950 bg-white hover:bg-sky-50 border border-slate-200 hover:border-sky-300 rounded-xl transition-all cursor-pointer shadow-2xs"
+                aria-label="Manual"
+                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:text-sky-950 bg-white hover:bg-sky-50 border border-slate-200 hover:border-sky-300 rounded-xl transition-all cursor-pointer shadow-2xs"
               >
                 <BookOpen className="w-3.5 h-3.5 text-sky-700" />
                 <span className="hidden sm:inline">Manual</span>
@@ -407,6 +416,7 @@ export const Header: React.FC<HeaderProps> = ({
               className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold text-rose-700 hover:text-rose-950 bg-rose-50 hover:bg-rose-100/90 border border-rose-200/90 rounded-xl transition-all cursor-pointer shadow-2xs"
             >
               <LogOut className="w-3.5 h-3.5 text-rose-600" />
+              <span className="sm:hidden">Salir</span>
               <span className="hidden sm:inline">Cerrar Sesión</span>
             </button>
 
@@ -417,7 +427,10 @@ export const Header: React.FC<HeaderProps> = ({
                 className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
                 aria-label="Abrir menú"
               >
-                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                <span className="flex flex-col items-center leading-none">
+                  {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                  <span className="text-[10px] font-semibold mt-0.5">Más</span>
+                </span>
               </button>
             </div>
           </div>
@@ -523,6 +536,21 @@ export const Header: React.FC<HeaderProps> = ({
               );
             })}
 
+            <div className="grid grid-cols-2 gap-1.5 sm:hidden mt-2">
+              {onManualSync && (
+                <button onClick={async () => { setMobileMenuOpen(false); setIsSyncingNow(true); try { await onManualSync(); } finally { setIsSyncingNow(false); } }}
+                  className="flex items-center justify-center gap-2 p-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700">
+                  <RefreshCw className="w-4 h-4" /> Actualizar datos
+                </button>
+              )}
+              {onOpenManualModal && (
+                <button onClick={() => { setMobileMenuOpen(false); onOpenManualModal(); }}
+                  className="flex items-center justify-center gap-2 p-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700">
+                  <BookOpen className="w-4 h-4" /> Manual
+                </button>
+              )}
+            </div>
+
             {onOpenProfileModal && (
               <button
                 onClick={() => {
@@ -538,6 +566,42 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
       )}
+
+      {/* Barra inferior en el móvil: las secciones principales siempre a mano, con texto.
+          Va fuera de la cabecera (portal) porque su efecto de desenfoque impediría que quedase fija abajo. */}
+      {createPortal(<nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 shadow-[0_-2px_8px_rgba(0,0,0,0.06)] print:hidden"
+        aria-label="Secciones de Convivencia" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div className="flex">
+          {navItems.slice(0, navItems.length > 4 ? 3 : 4).map((item) => {
+            const activo = currentView === item.id;
+            return (
+              <button key={item.id} onClick={() => { onNavigate(item.id); setMobileMenuOpen(false); window.scrollTo({ top: 0 }); }}
+                className={`flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-2 min-h-[56px] text-[11px] font-semibold ${
+                  item.id === 'imponer' ? (activo ? 'text-white bg-sky-700' : 'text-white bg-sky-600') : activo ? 'text-sky-800 bg-sky-50' : 'text-slate-600'}`}
+                aria-current={activo ? 'page' : undefined}>
+                {item.id === 'imponer' ? <PlusCircle className="w-5 h-5" /> : getViewIcon(item.id, false)}
+                <span className="truncate max-w-full px-1">{etiquetaCorta(item.id, item.label)}</span>
+              </button>
+            );
+          })}
+          {navItems.length > 4 && (
+            <button onClick={() => { setMobileMenuOpen(!mobileMenuOpen); window.scrollTo({ top: 0 }); }}
+              className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 min-h-[56px] text-[11px] font-semibold text-slate-600">
+              <Menu className="w-5 h-5" />
+              <span>Más</span>
+            </button>
+          )}
+        </div>
+      </nav>, document.body)}
     </header>
   );
 };
+
+/** Nombres cortos para la barra inferior del móvil. */
+function etiquetaCorta(id: string, label: string): string {
+  const cortas: Record<string, string> = {
+    imponer: 'Nuevo parte', mis_partes: 'Mis partes', pac: 'Aula PAC', tutoria: 'Mi tutoría', feed: 'Partes de hoy',
+    carnet: 'Carnet', analitica: 'Estadísticas', sanciones: 'Sanciones', etl: 'Cursos',
+  };
+  return cortas[id] || label;
+}

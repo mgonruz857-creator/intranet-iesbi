@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   ShieldCheck, 
   AlertCircle, 
@@ -123,6 +123,12 @@ export const LoginView: React.FC<LoginViewProps> = ({
   // Primer acceso (o contraseña restablecida por Jefatura): se escribe dos veces
   const isFirstTimeAccess = Boolean(registeredTeacher && estadoActual?.tieneClave === false && !isCheckingUserCredentials);
 
+  // En el móvil el aviso queda fuera de la pantalla al pulsar el botón: se sube hasta él
+  const cajaError = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (errorMessage) cajaError.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [errorMessage]);
+
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -132,7 +138,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
       return;
     }
     if (cuentaDeBaja) {
-      setErrorMessage(`Acceso bloqueado: La cuenta "${cleanEmail}" está dada de baja en el centro${estadoActual?.motivoBaja ? ` (${estadoActual.motivoBaja})` : ''}.`);
+      // Sin decir el motivo (puede ser una baja temporal con sustituto o una baja en el centro: dato personal)
+      setErrorMessage('Esta cuenta no tiene acceso ahora mismo (por ejemplo, durante una baja con sustitución). Si cree que es un error, hable con Jefatura de Estudios.');
       return;
     }
     if (!password.trim()) {
@@ -236,7 +243,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
           {/* Error message */}
           {errorMessage && (
-            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-start gap-2.5 animate-in fade-in duration-100">
+            <div ref={cajaError} role="alert" className="scroll-mt-24 p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-start gap-2.5 animate-in fade-in duration-100">
               <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
               <span className="leading-snug">{errorMessage}</span>
             </div>
@@ -449,11 +456,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
               <div className="flex items-center justify-between">
                 <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
                   <ShieldCheck className="w-3.5 h-3.5 text-sky-700" />
-                  <span>Seguridad de Sesión y Dispositivo</span>
+                  <span>¿Desde qué equipo entra?</span>
                 </label>
-                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-sky-100 text-sky-900 border border-sky-200">
-                  RGPD / ENS
-                </span>
               </div>
 
               <div className="grid grid-cols-1 gap-1.5">

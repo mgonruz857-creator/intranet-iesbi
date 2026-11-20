@@ -1696,10 +1696,19 @@ function datosCentro(req) {
 
 /** Lo que recibe cada módulo del centro: sin teléfonos ni datos de familias. */
 function datosParaModulo(db, modulo) {
+  // A quién sustituye cada sustituto (para que vea que su horario es el del titular)
+  var sustituyeA = {};
+  (db.sustituciones || []).forEach(function (x) {
+    if (!x || x.estado !== 'ACTIVA') return;
+    var t = buscarProfesor(db, x.titular);
+    sustituyeA[norm(x.sustituto)] = t ? [t.nombre, t.apellidos].filter(function (v) { return v; }).join(' ') : x.titular;
+  });
   var profesores = (db.profesores || []).filter(function (p) { return p && p.email && p.estado !== 'INACTIVO' && !sustitucionDeTitular(db, p.email); })
     .map(function (p) {
-      return { email: norm(p.email), nombre: p.nombre || '', apellidos: p.apellidos || '',
-               tutor_de_grupo: p.tutor_de_grupo || '', permiso: permisosDe(db, p)[modulo] };
+      var c = { email: norm(p.email), nombre: p.nombre || '', apellidos: p.apellidos || '',
+                tutor_de_grupo: p.tutor_de_grupo || '', permiso: permisosDe(db, p)[modulo] };
+      if (sustituyeA[norm(p.email)]) c.sustituye_a = sustituyeA[norm(p.email)];
+      return c;
     });
   var alumnos = (db.alumnos || []).filter(function (a) { return a && a.id_alumno && a.estado !== 'BAJA'; })
     .map(function (a) { return { id_alumno: a.id_alumno, nombre: a.nombre || '', apellidos: a.apellidos || '', grupo: a.grupo || '' }; });
@@ -2118,6 +2127,11 @@ function datosParaApp(db, prof) {
   var data = esAdmin(prof) ? sinCredenciales(db) : vistaDocente(db, prof);
   data.curso_actual = cursoActual(db);
   if (!esAdmin(prof)) delete data.cursos_archivados;
+  // Su horario (con las horas prestadas si es sustituto), para proponer el grupo con el que está en cada momento
+  var yo = norm(prof.email);
+  data.mi_horario = horariosEfectivos(db).filter(function (f) {
+    return norm(f[0]) === yo && String(f[4] || '').indexOf('GUARDIA') !== 0;
+  }).map(function (f) { return [f[1], f[2], f[3], f[4]]; });
   return data;
 }
 
@@ -2156,7 +2170,7 @@ function guardar(req) {
 // Datos que solo gestiona el servidor: nunca se toman de lo que envía la app
 var CLAVES_SERVIDOR = ['credenciales_profesores', 'credenciales_v1_alternativas', 'reset_credenciales_emails',
   'migracion_v2', 'saldos_antes_v2', 'horarios', 'permisos_intranet', 'horarios_pendientes', 'sustituciones',
-  'curso_actual', 'cursos_archivados', 'fecha_cambio_curso'];
+  'curso_actual', 'cursos_archivados', 'fecha_cambio_curso', 'mi_horario'];
 
 /**
  * Lista de lo que la app dice haber cambiado (entrada.cambios). Si existe, de lo demás se conserva

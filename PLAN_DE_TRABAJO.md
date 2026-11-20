@@ -115,7 +115,12 @@ más adelante `proyectoIntranet/PRODUCCION/`). Siempre en Mi unidad, mismo propi
       curso anterior no puede guardar (`CURSO_CAMBIADO`, se recarga). Pruebas en `pruebas/cambio_curso.test.mts`.
 - [x] Importación de Séneca con resumen previo y bajas de quien ya no figura (20/11, aprobado por Miguel Ángel);
       el panel la recuerda al terminar el cambio de curso. Pruebas en `pruebas/convivencia/importar_seneca.test.mts`.
-- [ ] Pegar el Intranet.gs nuevo en API_Intranet_PRUEBAS y probar el cambio de curso (Miguel Ángel).
+- [x] Prueba de uso con 7 perfiles ficticios (`pruebas/usuarios/`) y sus 10 mejoras (20/11, aprobadas por Miguel Ángel):
+      aviso claro y visible a la titular de baja; barra inferior en Convivencia en el móvil; grupo de la hora actual
+      elegido solo en el parte (`mi_horario` en los datos de convivencia); casillas grandes y «Todo el día/Ninguna» en
+      Ausencias; Mi horario por días en el móvil; sin jerga; correo de almacenamiento solo para la administración;
+      nombre del docente en Salidas (1.3.1); «Es el horario de…» para sustitutos (`sustituye_a`, guardias 1.2.1).
+- [ ] Pegar Intranet.gs, Salidas.gs y Guardias.gs nuevos en API_Intranet_PRUEBAS y probar el cambio de curso (Miguel Ángel).
 
 Resumen de la propuesta:
 - Una única fuente de "datos del centro" (profesorado, alumnado, grupos, horarios, curso escolar) con un panel

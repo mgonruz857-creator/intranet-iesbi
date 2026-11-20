@@ -143,7 +143,7 @@ export default function Aula({ usuario, avisar }: Props) {
                     </span>
                   </div>
                   <div className="text-xs text-slate-500 break-words">
-                    {etiquetaGrupo(s.grupo)} · salió a las {s.hora} · {s.docente}{s.excepcional ? ' · excepcional' : ''}
+                    {etiquetaGrupo(s.grupo)} · salió a las {s.hora} · {s.docente_nombre || s.docente}{s.excepcional ? ' · excepcional' : ''}
                   </div>
                   <div className="flex gap-2">
                     <button onClick={() => regreso(s)} disabled={ocupado === s.exit_id}

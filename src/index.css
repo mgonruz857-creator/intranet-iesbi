@@ -6,3 +6,8 @@
   .no-print { display: none !important; }
   body { background: #fff !important; }
 }
+
+/* Convivencia en el móvil: hueco para la barra inferior de secciones */
+@media (max-width: 1023px) {
+  body.con-barra-inferior { padding-bottom: 4.5rem; }
+}

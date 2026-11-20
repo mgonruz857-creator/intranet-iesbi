@@ -903,8 +903,12 @@ export default function App() {
           <div className="flex items-center gap-4 text-[11px]">
             <span>Decreto 327/2010</span>
             <span>·</span>
-            <span>Almacenamiento Centro: <strong className="font-mono text-sky-950">{CUENTA_DRIVE}</strong></span>
-            <span>·</span>
+            {isAdmin && (
+              <>
+                <span>Almacenamiento Centro: <strong className="font-mono text-sky-950">{CUENTA_DRIVE}</strong></span>
+                <span>·</span>
+              </>
+            )}
             <span className="text-sky-700 font-medium">Google Workspace for Education</span>
           </div>
         </div>

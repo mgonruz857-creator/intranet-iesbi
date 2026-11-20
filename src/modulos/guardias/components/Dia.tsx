@@ -195,7 +195,7 @@ function FilaGuardia({ g, usuario, cuadrante, avisar, alCambiar }: FilaProps) {
           )}
           {g.estado === 'HECHA' && <div className="text-xs text-emerald-700 font-semibold flex items-center gap-1 justify-end"><CheckCircle2 className="w-3.5 h-3.5" /> Hecha</div>}
         </div>
-        <button onClick={() => setAbierta(!abierta)} className="text-xs font-semibold text-sky-700 hover:underline self-center">
+        <button onClick={() => setAbierta(!abierta)} className="min-h-[40px] px-3 rounded-xl border border-sky-200 text-sm font-semibold text-sky-700 hover:bg-sky-50 self-center">
           {abierta ? 'Cerrar' : 'Tarea'}
         </button>
       </div>
@@ -213,19 +213,19 @@ function FilaGuardia({ g, usuario, cuadrante, avisar, alCambiar }: FilaProps) {
                 placeholder="Incidencias (opcional)" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
               <div className="flex flex-wrap gap-2">
                 <button disabled={ocupado} onClick={() => accion('marcarHecha', { incidencias, hecha: true }, 'Guardia marcada como hecha.')}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 disabled:opacity-50">
+                  className="inline-flex items-center gap-1.5 min-h-[40px] px-4 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50">
                   <CheckCircle2 className="w-4 h-4" /> {g.estado === 'HECHA' ? 'Guardar incidencias' : 'Marcar como hecha'}
                 </button>
                 {g.estado === 'HECHA' && (
                   <button disabled={ocupado} onClick={() => accion('marcarHecha', { incidencias, hecha: false }, 'Guardia pendiente de nuevo.')}
-                    className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold hover:bg-slate-50">Deshacer</button>
+                    className="min-h-[40px] px-4 rounded-xl border border-slate-200 text-sm font-semibold hover:bg-slate-50">Deshacer</button>
                 )}
               </div>
             </div>
           )}
           {!g.asignada && !g.propia && yoDeGuardia && (
             <button disabled={ocupado} onClick={() => accion('coger', {}, 'Guardia asignada a usted.')}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-700 text-white text-xs font-semibold hover:bg-sky-800">
+              className="inline-flex items-center gap-1.5 min-h-[40px] px-4 rounded-xl bg-sky-700 text-white text-sm font-semibold hover:bg-sky-800">
               <Hand className="w-4 h-4" /> Cogerla yo
             </button>
           )}

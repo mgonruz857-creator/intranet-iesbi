@@ -13,6 +13,9 @@ const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
 export default function MiHorario({ usuario, avisar }: Props) {
   const [email, setEmail] = useState(usuario.email);
   const [horas, setHoras] = useState<Hora[] | null>(null);
+  const [sustituyeA, setSustituyeA] = useState('');
+  // En el móvil se ve un día cada vez: hoy (o el lunes en fin de semana)
+  const [diaMovil, setDiaMovil] = useState(() => { const d = new Date().getDay(); return d >= 1 && d <= 5 ? d : 1; });
   const [profesorado, setProfesorado] = useState<{ email: string; nombre: string }[]>([]);
 
   useEffect(() => {
@@ -23,10 +26,11 @@ export default function MiHorario({ usuario, avisar }: Props) {
   useEffect(() => {
     let vigente = true;
     setHoras(null);
-    llamarApi<{ horas: Hora[] }>('miHorario', email !== usuario.email ? { email } : {}).then((r) => {
+    llamarApi<{ horas: Hora[]; sustituyeA?: string }>('miHorario', email !== usuario.email ? { email } : {}).then((r) => {
       if (!vigente) return;
       if (!r.ok) { avisar(r.mensaje || 'No se ha podido cargar el horario.', true); setHoras([]); return; }
       setHoras(r.horas);
+      setSustituyeA(r.sustituyeA || '');
     });
     return () => { vigente = false; };
   }, [email, usuario.email, avisar]);
@@ -53,12 +57,43 @@ export default function MiHorario({ usuario, avisar }: Props) {
 
       <section className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3 print:border-0 print:p-0">
         <h2 className="text-sm font-bold">Horario de {nombre}</h2>
+        {sustituyeA && (
+          <p className="text-xs text-slate-600 -mt-2">
+            Es el horario de <strong>{sustituyeA}</strong>: lo cubre usted mientras dure la sustitución.
+          </p>
+        )}
         {horas === null ? (
           <p className="text-sm text-slate-500">Cargando…</p>
         ) : !horas.length ? (
           <p className="text-sm text-slate-500">No hay horario cargado. Se carga desde el PDF de Séneca en el Panel del centro.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Móvil: un día cada vez, con pestañas */}
+          <div className="sm:hidden print:hidden space-y-2">
+            <div className="grid grid-cols-5 gap-1" role="tablist" aria-label="Día de la semana">
+              {DIAS.map((d, i) => (
+                <button key={d} role="tab" aria-selected={diaMovil === i + 1} onClick={() => setDiaMovil(i + 1)}
+                  className={'min-h-[44px] rounded-xl text-sm font-semibold border ' + (diaMovil === i + 1 ? 'bg-sky-700 text-white border-sky-700' : 'bg-white text-slate-700 border-slate-200')}>
+                  {d.slice(0, 2)}
+                </button>
+              ))}
+            </div>
+            <div className="text-sm font-semibold text-slate-700">{DIAS[diaMovil - 1]}</div>
+            {horas.filter((h) => h.dia === diaMovil).length === 0 ? (
+              <p className="text-sm text-slate-500">Sin clases este día.</p>
+            ) : (
+              <ul className="divide-y divide-slate-100 border border-slate-200 rounded-xl">
+                {horas.filter((h) => h.dia === diaMovil).map((h, k) => (
+                  <li key={k} className={'flex items-center gap-3 px-3 py-2.5 text-sm ' + (/^GUARDIA/.test(h.grupo) ? 'bg-amber-50' : '')}>
+                    <span className="tabular-nums font-semibold w-28 shrink-0">{h.desde}–{h.hasta}</span>
+                    <span className="font-semibold">{etiquetaGrupo(h.grupo)}</span>
+                    {h.aula && <span className="text-slate-500">· {h.aula}</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="hidden sm:block print:block overflow-x-auto">
             <table className="w-full border-collapse text-xs min-w-[640px] print:min-w-0">
               <thead>
                 <tr>
@@ -92,6 +127,7 @@ export default function MiHorario({ usuario, avisar }: Props) {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </section>
     </div>

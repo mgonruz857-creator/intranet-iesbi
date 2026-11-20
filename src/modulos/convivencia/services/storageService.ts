@@ -2630,6 +2630,19 @@ export class StorageService {
     if (curso) localStorage.setItem(KEY_CURSO_ACTUAL, curso);
   }
 
+  /** Horario propio del docente (día 1-5, desde, hasta, grupo), lo trae cada lectura completa del servidor. */
+  static setMiHorario(email: string, filas: unknown): void {
+    if (!Array.isArray(filas)) return;
+    try { localStorage.setItem('convivencia_mi_horario', JSON.stringify({ email: (email || '').toLowerCase(), filas })); } catch { /* sin espacio */ }
+  }
+
+  static getMiHorario(email: string): Array<[number, string, string, string]> {
+    try {
+      const d = JSON.parse(localStorage.getItem('convivencia_mi_horario') || 'null');
+      return d && d.email === (email || '').toLowerCase() && Array.isArray(d.filas) ? d.filas : [];
+    } catch { return []; }
+  }
+
   static setCursosArchivadosServidor(lista: CursoArchivadoServidor[]): void {
     memoryCursosServidor = Array.isArray(lista) ? lista.filter((c) => c && c.id_curso) : [];
   }

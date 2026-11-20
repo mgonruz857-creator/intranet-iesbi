@@ -33,7 +33,7 @@
 
 // ───────────────────────── Configuración ─────────────────────────
 
-var VERSION = '1.2.0';
+var VERSION = '1.2.1';
 var ZONA = 'Europe/Madrid';
 var DOMINIO = '@g.educaand.es';
 var DURACION_SESION_SEG = 21600;    // 6 horas (máximo de CacheService), se renueva con el uso
@@ -245,7 +245,7 @@ function convertirCentral_(r) {
     var email = norm_(p.email);
     if (!email) return;
     var nombre = [p.apellidos, p.nombre].filter(function (x) { return x; }).join(', ');
-    profesorado[email] = { email: email, nombre: nombre || email, jefatura: p.permiso === 'JEFATURA' };
+    profesorado[email] = { email: email, nombre: nombre || email, jefatura: p.permiso === 'JEFATURA', sustituyeA: p.sustituye_a || '' };
   });
   (r.horarios || []).forEach(function (f) {
     var e = norm_(f[0]), dia = Number(f[1]), desde = minutos_(f[2]), hasta = minutos_(f[3]), grupo = String(f[4] || '').trim();
@@ -299,7 +299,8 @@ function miHorario_(u, req) {
     return { dia: t[0], desde: texto_(t[1]), hasta: texto_(t[2]), grupo: t[3], aula: t[4] };
   });
   horas.sort(function (a, b) { return a.dia - b.dia || a.desde.localeCompare(b.desde); });
-  return { ok: true, email: email, horas: horas };
+  var p = profesorado_()[email];
+  return { ok: true, email: email, horas: horas, sustituyeA: (p && p.sustituyeA) || '' };
 }
 
 function registrarAusencia_(u, req, ahora) {
