@@ -8,6 +8,10 @@
  * Servidor único (salidas y guardias dentro): SERVIDOR_UNICO=1 npx tsx pruebas/convivencia/servidor-local.mts
  * y basta con VITE_URL_API_CONVIVENCIA=http://localhost:8788 npm run dev.
  *
+ * Centro ficticio completo (6 grupos, 60 alumnos, 8 docentes, horarios y una sustitución) y respuestas con la
+ * lentitud de Google: CENTRO_FICTICIO=1 LATENCIA_MS=1500 SERVIDOR_UNICO=1 npx tsx pruebas/convivencia/servidor-local.mts
+ * (cuentas en pruebas/usuarios/centro.mts; contraseña del administrador: Infante2026).
+ *
  * Cuentas: mgonruz857@g.educaand.es (administrador), docente.uno@g.educaand.es y directiva@g.educaand.es
  * (primer acceso: cualquier contraseña válida).
  */
@@ -17,7 +21,8 @@ const { generarServidorAppsScript } = await import('../../src/modulos/convivenci
 
 const profesor = (id: string, email: string, nombre: string, rol = 'ROLE_DOCENTE') =>
   ({ id_profesor: id, email, nombre, apellidos: 'Ejemplo', rol, estado: 'ACTIVO' });
-const DATOS = {
+const centro = process.env.CENTRO_FICTICIO ? await import('../usuarios/centro.mts') : null;
+const DATOS = centro ? centro.DATOS : {
   profesores: [
     profesor('p1', 'mgonruz857@g.educaand.es', 'Administrador', 'ROLE_CONVIVENCIA_ADMIN'),
     profesor('p2', 'docente.uno@g.educaand.es', 'Docente Uno'),
@@ -36,6 +41,8 @@ if (process.env.SERVIDOR_UNICO) {
   srv = crearServidor(generarServidorAppsScript(), DATOS);
 }
 if (process.env.SECRETO_INTRANET) srv.props.set('SECRETO_INTRANET', process.env.SECRETO_INTRANET);
+if (centro) { if (process.env.SERVIDOR_UNICO) { srv.ctx.guardiasConfigurarHoja(); srv.ctx.salidasConfigurarHoja(); } centro.prepararCentro(srv); }
+const LATENCIA = Number(process.env.LATENCIA_MS || 0);
 
 http.createServer((req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -46,6 +53,6 @@ http.createServer((req, res) => {
   req.on('end', () => {
     let r;
     try { r = srv.post(JSON.parse(cuerpo || '{}')); } catch (err) { r = { ok: false, error: String(err) }; }
-    res.end(JSON.stringify(r));
+    setTimeout(() => res.end(JSON.stringify(r)), LATENCIA);
   });
 }).listen(8788, () => console.log('Servidor de convivencia (pruebas) en http://localhost:8788'));
