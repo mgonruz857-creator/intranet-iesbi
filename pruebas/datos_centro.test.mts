@@ -84,5 +84,38 @@ ok('sin contraseñas ni datos internos', !/credenciales|password|CLAVE_/.test(JS
 r = srv.post({ accion: 'datosCentro', peticion: peticion('guardias', secreto) });
 ok('para guardias, el permiso de guardias', r.ok && r.profesores.find((p: any) => p.email === JEFA).permiso === 'JEFATURA');
 
+console.log('== Horarios de Séneca sin docente');
+r = srv.post({ accion: 'guardarHorarios', token: tAdmin, filas: [], docentes: [],
+  pendientes: [{ nombre: 'NUEVO FICTICIO,PEPE', filas: [[2, '08:30', '09:30', '1ESO_A', 'A12'], [2, '09:30', '10:30', 'GUARDIA', ''], [9, '08:30', '09:30', '1ESO_A', '']] },
+    { nombre: 'OTRO FICTICIO,LUIS', filas: [[3, '08:30', '09:30', '2ESO_B', '']] }] });
+ok('las páginas sin docente quedan pendientes (con filas válidas)', r.ok && r.pendientes === 2);
+r = srv.post({ accion: 'panelLeer', token: tAdmin });
+ok('el panel las ve', r.ok && r.pendientes.length === 2 && r.pendientes[0].filas.length === 2, JSON.stringify(r.pendientes));
+r = srv.post({ accion: 'guardarHorarios', token: tAdmin, filas: [], docentes: [], resueltos: ['OTRO FICTICIO,LUIS'] });
+ok('si en otra subida ese nombre ya tiene docente, deja de estar pendiente', r.ok && r.pendientes === 1);
+r = srv.post({ accion: 'resolverHorarioPendiente', token: tDoc, nombreSeneca: 'NUEVO FICTICIO,PEPE', email: 'pepe.ficticio@g.educaand.es', nombre: 'Pepe', apellidos: 'Nuevo Ficticio' });
+ok('un docente sin panel no puede resolverlos', !r.ok && r.codigo === 'PROHIBIDO');
+r = srv.post({ accion: 'resolverHorarioPendiente', token: tJefa, nombreSeneca: 'NUEVO FICTICIO,PEPE', email: 'pepe.ficticio@g.educaand.es', nombre: 'Pepe', apellidos: 'Nuevo Ficticio' });
+ok('dar de alta exige ser administrador de Convivencia', !r.ok && r.codigo === 'PROHIBIDO');
+r = srv.post({ accion: 'resolverHorarioPendiente', token: tAdmin, nombreSeneca: 'NUEVO FICTICIO,PEPE', email: 'pepe@gmail.com', nombre: 'Pepe', apellidos: 'Nuevo' });
+ok('el correo tiene que ser del dominio', !r.ok && r.codigo === 'EMAIL');
+r = srv.post({ accion: 'resolverHorarioPendiente', token: tAdmin, nombreSeneca: 'NUEVO FICTICIO,PEPE', email: 'Pepe.Ficticio@g.educaand.es', nombre: 'Pepe', apellidos: 'Nuevo Ficticio' });
+ok('el administrador da de alta al docente con su horario', r.ok && r.alta === true && r.horas === 2);
+r = srv.post({ accion: 'panelLeer', token: tAdmin });
+const pepe = r.profesores.find((p: any) => p.email === 'pepe.ficticio@g.educaand.es');
+ok('...queda activo, con su horario, y sin pendientes', !!pepe && pepe.estado === 'ACTIVO' && r.pendientes.length === 0
+  && r.horarios.filter((f: any) => f[0] === 'pepe.ficticio@g.educaand.es').length === 2);
+ok('...y puede entrar (primer acceso)', srv.post({ accion: 'estadoCuenta', email: 'pepe.ficticio@g.educaand.es' }).registrado === true);
+srv.post({ accion: 'guardarHorarios', token: tAdmin, filas: [], docentes: [], pendientes: [{ nombre: 'TERCERO,ANA', filas: [[1, '12:00', '13:00', '3ESO_C', '']] }] });
+r = srv.post({ accion: 'resolverHorarioPendiente', token: tJefa, nombreSeneca: 'TERCERO,ANA', email: DOC });
+ok('asignar a un docente existente no exige ser administrador de Convivencia', r.ok && r.alta === false);
+srv.post({ accion: 'guardarHorarios', token: tAdmin, filas: [], docentes: [], pendientes: [{ nombre: 'CUARTO,LUIS', filas: [[1, '12:00', '13:00', '3ESO_C', '']] }] });
+r = srv.post({ accion: 'resolverHorarioPendiente', token: tJefa, nombreSeneca: 'CUARTO,LUIS', accion2: 'descartar' });
+ok('se puede descartar', r.ok && srv.post({ accion: 'panelLeer', token: tAdmin }).pendientes.length === 0);
+const leido2 = srv.post({ accion: 'leer', token: tAdmin }).data;
+leido2.horarios_pendientes = [{ nombre: 'X', filas: [] }];
+srv.post({ accion: 'guardar', token: tAdmin, data: leido2 });
+ok('"guardar" de convivencia no toca los pendientes', srv.post({ accion: 'panelLeer', token: tAdmin }).pendientes.length === 0);
+
 console.log(fallos ? `\n${fallos} FALLO(S)` : '\nTodo correcto');
 if (fallos) process.exit(1);

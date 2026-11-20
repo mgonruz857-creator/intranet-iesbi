@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
-import { CalendarClock, DatabaseBackup, GraduationCap, ShieldCheck, Users } from 'lucide-react';
-import { llamarApi, type DocentePanel, type FilaHorario } from './api';
+import { AlertTriangle, CalendarClock, DatabaseBackup, GraduationCap, ShieldCheck, Users } from 'lucide-react';
+import { llamarApi, type DocentePanel, type FilaHorario, type HorarioPendiente } from './api';
 import Profesorado from './components/Profesorado';
 import Horarios from './components/Horarios';
 
@@ -15,6 +15,7 @@ export default function App() {
   const [pestana, setPestana] = useState<Pestana>('profesorado');
   const [profesores, setProfesores] = useState<DocentePanel[] | null>(null);
   const [horarios, setHorarios] = useState<FilaHorario[]>([]);
+  const [pendientes, setPendientes] = useState<HorarioPendiente[]>([]);
   const [error, setError] = useState('');
   const [aviso, setAviso] = useState<AvisoPanel | null>(null);
 
@@ -32,6 +33,7 @@ export default function App() {
     setError('');
     setProfesores(r.profesores as DocentePanel[]);
     setHorarios(r.horarios as FilaHorario[]);
+    setPendientes((r.pendientes || []) as HorarioPendiente[]);
   }, []);
 
   useEffect(() => { cargar(); }, [cargar]);
@@ -62,7 +64,26 @@ export default function App() {
           </nav>
         </div>
       </header>
-      <main className="max-w-6xl mx-auto px-4 py-4">
+      <main className="max-w-6xl mx-auto px-4 py-4 space-y-4">
+        {profesores && (() => {
+          // Aviso permanente: se quita solo cuando ya no queda nada pendiente
+          const conHorario = new Set(horarios.map((f) => String(f[0]).toLowerCase()));
+          const sinHorario = profesores.filter((p) => p.estado !== 'INACTIVO' && !conHorario.has(p.email.toLowerCase())).length;
+          if (!sinHorario && !pendientes.length) return null;
+          const partes = [
+            sinHorario ? sinHorario + (sinHorario === 1 ? ' docente sin horario' : ' docentes sin horario') : '',
+            pendientes.length ? pendientes.length + (pendientes.length === 1 ? ' horario de Séneca sin docente' : ' horarios de Séneca sin docente') : '',
+          ].filter(Boolean);
+          return (
+            <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-900">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span className="mr-auto font-semibold">{partes.join(' · ')}</span>
+              {pestana !== 'horarios' && (
+                <button onClick={() => setPestana('horarios')} className="text-xs font-semibold text-sky-700 hover:underline">Resolver en Horarios</button>
+              )}
+            </div>
+          );
+        })()}
         {pestana === 'profesorado' || pestana === 'alumnado' || pestana === 'copias' ? (
           <Suspense fallback={<div className="p-10 text-center text-slate-500">Cargando…</div>}>
             <GestionDatos key={pestana} seccion={pestana} alCambiar={cargar} />
@@ -74,7 +95,7 @@ export default function App() {
         ) : pestana === 'permisos' ? (
           <Profesorado profesores={profesores} horarios={horarios} avisar={avisar} alCambiar={setProfesores} />
         ) : (
-          <Horarios profesores={profesores} horarios={horarios} avisar={avisar} alGuardar={cargar} />
+          <Horarios profesores={profesores} horarios={horarios} pendientes={pendientes} avisar={avisar} alGuardar={cargar} />
         )}
       </main>
       {aviso && (

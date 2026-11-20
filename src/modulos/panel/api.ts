@@ -15,9 +15,18 @@ export interface DocentePanel {
   permisos: PermisosIntranet;
 }
 
-/** [correo, día 1-5, 'HH:mm', 'HH:mm', grupo] */
 /** [email, día 1-5, desde, hasta, grupo (o GUARDIA / GUARDIA_RECREO), aula (opcional)] */
 export type FilaHorario = [string, number, string, string, string, string?];
+
+/** Página del PDF de Séneca sin docente: nombre tal como viene y filas [día, desde, hasta, grupo, aula]. */
+export interface HorarioPendiente { nombre: string; filas: [number, string, string, string, string][] }
+
+/** "GARCÍA LÓPEZ,MARÍA JOSÉ" → { nombre: 'María José', apellidos: 'García López' } */
+export function nombreDeSeneca(s: string): { nombre: string; apellidos: string } {
+  const bonito = (t: string) => t.trim().toLowerCase().replace(/(^|[\s-])(\p{L})/gu, (_, a, b) => a + b.toUpperCase());
+  const [ap, ...resto] = s.split(',');
+  return { apellidos: bonito(ap || ''), nombre: bonito(resto.join(' ')) };
+}
 
 export function llamarApi(accion: string, datos: Record<string, unknown> = {}, timeoutMs = 45000): Promise<RespuestaApi> {
   return llamar(accion, { token: AuthService.getToken(), ...datos }, timeoutMs);

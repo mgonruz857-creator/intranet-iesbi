@@ -37,6 +37,10 @@ Igual que con convivencia: los cambios nuevos de salidas, mejor hacerlos ya en l
       ver `docs/guardias.md`). Motivo solo para JEFATURA; recuento desde el 1 de septiembre.
 - [x] Servidor de guardias de pruebas creado (Guardias_PRUEBAS en proyectoIntranet/PRUEBAS) y conectado (19/11).
 - [ ] Volver a subir el PDF de horarios de Séneca en el panel (para guardar las horas de guardia y las aulas).
+- [x] Avisos de horarios (20/11, pedido por Miguel Ángel): aviso permanente arriba del panel (docentes sin horario y
+      horarios de Séneca sin docente). Las páginas del PDF sin docente se guardan como pendientes
+      (`horarios_pendientes`); desde Horarios se asignan, se da de alta al docente con el nombre de Séneca (el horario
+      se le asigna solo; requiere ser administrador de Convivencia) o se descartan (acción `resolverHorarioPendiente`).
 
 ## Pendiente (cuando proceda) – Panel de control unificado
 

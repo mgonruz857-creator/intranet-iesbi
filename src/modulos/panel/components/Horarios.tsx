@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { FileUp, Save } from 'lucide-react';
-import { llamarApi, GRUPOS, etiquetaGrupo, nombreCompleto, type DocentePanel, type FilaHorario } from '../api';
+import { FileUp, Save, UserPlus, X } from 'lucide-react';
+import { llamarApi, GRUPOS, etiquetaGrupo, nombreCompleto, nombreDeSeneca, type DocentePanel, type FilaHorario, type HorarioPendiente } from '../api';
+import { AuthService } from '../../convivencia/services/authService';
 import { buscarDocente, grupoAutomatico, interpretarPagina, tipoGuardia, type PaginaHorario } from '../../../nucleo/seneca/horarioSeneca';
 
 const CLAVE_EQUIVALENCIAS = 'gbcs_equivalencias_grupos';
@@ -9,11 +10,12 @@ const NOMBRES_DIA = ['', 'L', 'M', 'X', 'J', 'V'];
 interface Props {
   profesores: DocentePanel[];
   horarios: FilaHorario[];
+  pendientes: HorarioPendiente[];
   avisar: (texto: string, error?: boolean) => void;
   alGuardar: () => void;
 }
 
-export default function Horarios({ profesores, horarios, avisar, alGuardar }: Props) {
+export default function Horarios({ profesores, horarios, pendientes, avisar, alGuardar }: Props) {
   const activos = profesores.filter((p) => p.estado !== 'INACTIVO');
   // En Séneca el nombre viene como "APELLIDOS,NOMBRE"
   const docentes = activos.map((p) => ({ email: p.email.toLowerCase(), nombre: nombreCompleto(p) }));
@@ -22,6 +24,22 @@ export default function Horarios({ profesores, horarios, avisar, alGuardar }: Pr
   return (
     <div className="space-y-4">
       <ImportarHorario docentes={docentes} grupos={GRUPOS} avisar={avisar} alGuardar={alGuardar} />
+      {pendientes.length > 0 && (
+        <section className="bg-white border border-amber-200 rounded-2xl p-4 text-sm space-y-3">
+          <div>
+            <h2 className="text-sm font-bold text-amber-900">Horarios de Séneca sin docente ({pendientes.length})</h2>
+            <p className="text-xs text-slate-600">
+              Estos horarios no coinciden con ningún docente dado de alta. Asígnelos a un docente, dé de alta al docente
+              (el horario se le asigna solo) o descártelos si ya no está en el centro.
+            </p>
+          </div>
+          <ul className="space-y-2">
+            {pendientes.map((p) => (
+              <PendienteFila key={p.nombre} pendiente={p} docentes={docentes} avisar={avisar} alResolver={alGuardar} />
+            ))}
+          </ul>
+        </section>
+      )}
       <section className="bg-white border border-slate-200 rounded-2xl p-4 text-sm space-y-2">
         <h2 className="text-sm font-bold">Estado</h2>
         <p className="text-slate-600">
@@ -38,6 +56,88 @@ export default function Horarios({ profesores, horarios, avisar, alGuardar }: Pr
         )}
       </section>
     </div>
+  );
+}
+
+// ───────── Horario de Séneca sin docente ─────────
+
+interface PendienteProps {
+  pendiente: HorarioPendiente;
+  docentes: { email: string; nombre: string }[];
+  avisar: (texto: string, error?: boolean) => void;
+  alResolver: () => void;
+}
+
+function PendienteFila({ pendiente, docentes, avisar, alResolver }: PendienteProps) {
+  const propuesto = nombreDeSeneca(pendiente.nombre);
+  const [modo, setModo] = useState<'' | 'alta'>('');
+  const [existente, setExistente] = useState('');
+  const [nombre, setNombre] = useState(propuesto.nombre);
+  const [apellidos, setApellidos] = useState(propuesto.apellidos);
+  const [email, setEmail] = useState('');
+  const [ocupado, setOcupado] = useState(false);
+  const puedeAlta = AuthService.isAdmin(AuthService.getCurrentUser());
+  const clases = pendiente.filas.filter((f) => !f[3].startsWith('GUARDIA')).length;
+
+  async function resolver(datos: Record<string, unknown>, ok: string) {
+    setOcupado(true);
+    const r = await llamarApi('resolverHorarioPendiente', { nombreSeneca: pendiente.nombre, ...datos });
+    setOcupado(false);
+    if (!r.ok) { avisar(r.error || 'No se ha podido guardar.', true); return; }
+    avisar(ok);
+    alResolver();
+  }
+
+  function darDeAlta() {
+    const correo = email.trim().toLowerCase();
+    if (!nombre.trim() || !apellidos.trim()) { avisar('Escriba el nombre y los apellidos.', true); return; }
+    if (!/^[^@\s]+@g\.educaand\.es$/.test(correo)) { avisar('El correo debe ser del dominio @g.educaand.es.', true); return; }
+    resolver({ email: correo, nombre: nombre.trim(), apellidos: apellidos.trim() }, 'Docente dado de alta con su horario.');
+  }
+
+  return (
+    <li className="rounded-xl border border-amber-200 bg-amber-50/40 p-3 space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-semibold mr-auto">{pendiente.nombre}
+          <span className="font-normal text-xs text-slate-500"> · {clases} clases y {pendiente.filas.length - clases} horas de guardia</span>
+        </span>
+        <select value={existente} onChange={(e) => setExistente(e.target.value)} disabled={ocupado}
+          className="rounded-lg border border-slate-200 px-2 py-1 text-xs max-w-60" aria-label={'Docente para ' + pendiente.nombre}>
+          <option value="">Asignar a un docente…</option>
+          {docentes.map((d) => <option key={d.email} value={d.email}>{d.nombre}</option>)}
+        </select>
+        {existente && (
+          <button disabled={ocupado} onClick={() => resolver({ email: existente }, 'Horario asignado.')}
+            className="px-2.5 py-1 rounded-lg bg-sky-700 text-white text-xs font-semibold hover:bg-sky-800">Asignar</button>
+        )}
+        {puedeAlta && (
+          <button disabled={ocupado} onClick={() => setModo(modo ? '' : 'alta')}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-xs font-semibold hover:bg-slate-50">
+            <UserPlus className="w-3.5 h-3.5" /> Dar de alta
+          </button>
+        )}
+        <button disabled={ocupado} title="Descartar este horario"
+          onClick={() => confirm('¿Descartar el horario de ' + pendiente.nombre + '?') && resolver({ accion2: 'descartar' }, 'Horario descartado.')}
+          className="p-1 rounded-lg border border-slate-200 bg-white hover:bg-red-50 text-slate-500 hover:text-red-700">
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+      {modo === 'alta' && (
+        <div className="flex flex-wrap items-end gap-2 text-xs">
+          <label className="space-y-1"><span className="block font-semibold text-slate-600">Nombre</span>
+            <input value={nombre} onChange={(e) => setNombre(e.target.value)} className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm" /></label>
+          <label className="space-y-1"><span className="block font-semibold text-slate-600">Apellidos</span>
+            <input value={apellidos} onChange={(e) => setApellidos(e.target.value)} className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm" /></label>
+          <label className="space-y-1 flex-1 min-w-56"><span className="block font-semibold text-slate-600">Correo @g.educaand.es</span>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="usuario@g.educaand.es"
+              className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm" /></label>
+          <button disabled={ocupado} onClick={darDeAlta}
+            className="px-3 py-2 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 disabled:opacity-50">
+            Dar de alta y asignar horario
+          </button>
+        </div>
+      )}
+    </li>
   );
 }
 
@@ -117,12 +217,23 @@ export function ImportarHorario({ docentes, grupos, avisar, alGuardar }: Importa
 
   async function guardar() {
     const correos = [...new Set(paginas.map((p) => docenteDe[p.profesor]).filter(Boolean))];
-    if (!correos.length) { avisar('Asigne al menos un docente.', true); return; }
+    if (!correos.length && !paginas.length) { avisar('No hay horarios que guardar.', true); return; }
     setGuardando(true);
-    const r = await llamarApi('guardarHorarios', { filas, docentes: correos }, 60000);
+    // Las páginas sin docente se guardan como pendientes, para resolverlas después
+    const pendientes = paginas.filter((p) => !docenteDe[p.profesor]).map((p) => ({
+      nombre: p.profesor,
+      filas: p.tramos.map((t) => {
+        const guardia = tipoGuardia(t);
+        const g = guardia || t.grupos.map(codigo).find(Boolean) || '';
+        return [t.dia, t.desde, t.hasta, g, guardia ? '' : t.aula];
+      }).filter((f) => f[3]),
+    })).filter((p) => p.filas.length);
+    const resueltos = paginas.filter((p) => docenteDe[p.profesor]).map((p) => p.profesor);
+    const r = await llamarApi('guardarHorarios', { filas, docentes: correos, pendientes, resueltos }, 60000);
     setGuardando(false);
     if (!r.ok) { avisar(r.error || 'No se pudo guardar el horario.', true); return; }
-    avisar('Horario guardado: ' + r.guardados + ' horas de ' + r.docentes + ' docentes.');
+    avisar('Horario guardado: ' + r.guardados + ' horas de ' + r.docentes + ' docentes.' +
+      (r.pendientes ? ' Hay ' + r.pendientes + ' horarios sin docente pendientes.' : ''));
     setPaginas([]);
     alGuardar();
   }
@@ -146,7 +257,7 @@ export function ImportarHorario({ docentes, grupos, avisar, alGuardar }: Importa
         <div className="space-y-4">
           <div>
             <h3 className="text-xs font-bold text-slate-700 mb-1.5">
-              Docentes leídos: {paginas.length}{sinDocente ? ' · ' + sinDocente + ' sin identificar (no se guardarán)' : ''}
+              Docentes leídos: {paginas.length}{sinDocente ? ' · ' + sinDocente + ' sin identificar (quedarán pendientes para darlos de alta o asignarlos)' : ''}
             </h3>
             <div className="grid gap-1.5 sm:grid-cols-2">
               {paginas.map((p) => (
@@ -195,7 +306,7 @@ export function ImportarHorario({ docentes, grupos, avisar, alGuardar }: Importa
 
           <div className="flex gap-2 justify-end">
             <button onClick={() => setPaginas([])} className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold hover:bg-slate-50">Descartar</button>
-            <button onClick={guardar} disabled={guardando || !filas.length}
+            <button onClick={guardar} disabled={guardando || !paginas.length}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold disabled:opacity-50">
               <Save className="w-4 h-4" /> {guardando ? 'Guardando…' : 'Guardar horario'}
             </button>

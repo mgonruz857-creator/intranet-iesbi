@@ -50,9 +50,10 @@ La intranet copia código de las apps existentes, pero **no escribe en ellas**:
   crea con la función de editor `crearSecretoIntranet` (convivencia) y se copia a mano en las propiedades del script
   de los demás servidores. Si un servidor aún no lo tiene, el módulo pide su propia contraseña como antes.
   Al cerrar la sesión de convivencia se cierran también las de los demás módulos.
-- **Servidor central**: el de convivencia guarda también los datos comunes de la intranet: `horarios` y
-  `permisos_intranet` (permiso de cada docente en cada módulo y quién administra el panel). Solo cambian con sus
-  acciones (`guardarPermisos`, `guardarHorarios`), nunca con `guardar`. Los demás servidores leen lo que necesitan con
+- **Servidor central**: el de convivencia guarda también los datos comunes de la intranet: `horarios`,
+  `horarios_pendientes` (páginas de Séneca sin docente) y `permisos_intranet` (permiso de cada docente en cada módulo
+  y quién administra el panel). Solo cambian con sus acciones (`guardarPermisos`, `guardarHorarios`,
+  `resolverHorarioPendiente`), nunca con `guardar`. Los demás servidores leen lo que necesitan con
   `datosCentro` (petición firmada con `SECRETO_INTRANET`, sin teléfonos ni datos de familias). Ver `docs/convivencia.md`.
   Salidas lo usa si su script tiene la propiedad `URL_SERVIDOR_CENTRAL` (ver `docs/salidas.md`).
 - **Panel del centro** (`src/modulos/panel`): solo para administradores del panel (`perfilIntranet` → `permisos.panel`).

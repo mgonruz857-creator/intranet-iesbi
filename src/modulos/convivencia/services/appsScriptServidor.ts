@@ -839,6 +839,7 @@ function doPost(e) {
       case 'panelLeer': return salida(panelLeer(req));
       case 'guardarPermisos': return salida(guardarPermisos(req));
       case 'guardarHorarios': return salida(guardarHorarios(req));
+      case 'resolverHorarioPendiente': return salida(resolverHorarioPendiente(req));
       case 'datosCentro': return salida(datosCentro(req));
       default: return salida({ ok: false, error: 'Acción desconocida.' });
     }
@@ -1378,7 +1379,7 @@ function panelLeer(req) {
     c.permisos = permisosDe(db, p);
     return c;
   });
-  return { ok: true, profesores: profesores, horarios: db.horarios || [] };
+  return { ok: true, profesores: profesores, horarios: db.horarios || [], pendientes: db.horarios_pendientes || [] };
 }
 
 /** Panel: cambia los permisos de un docente. Siempre debe quedar al menos un administrador del panel. */
@@ -1450,9 +1451,96 @@ function guardarHorarios(req) {
     (Array.isArray(req.docentes) ? req.docentes : []).forEach(function (e) { if (buscarProfesor(db, e)) docentes[norm(e)] = true; });
     var conservadas = (db.horarios || []).filter(function (f) { return f && !docentes[norm(f[0])]; });
     db.horarios = conservadas.concat(nuevas);
-    registrarAuditoria(db, s.email, 'Horarios', 'Horario guardado: ' + nuevas.length + ' horas de ' + Object.keys(docentes).length + ' docentes.');
+    // Páginas del PDF sin docente: se guardan para resolverlas después (alta o asignación desde el panel)
+    var tocadas = {};
+    (Array.isArray(req.resueltos) ? req.resueltos : []).forEach(function (n) { tocadas[nombrePendiente(n)] = true; });
+    var pendientes = [];
+    (Array.isArray(req.pendientes) ? req.pendientes : []).slice(0, 300).forEach(function (pe) {
+      var nombre = nombrePendiente(pe && pe.nombre);
+      if (!nombre) return;
+      tocadas[nombre] = true;
+      var filas = [];
+      (Array.isArray(pe.filas) ? pe.filas : []).slice(0, 100).forEach(function (f) {
+        var fila = filaHorarioValida(['', f[0], f[1], f[2], f[3], f[4]]);
+        if (fila) filas.push(fila.slice(1));
+      });
+      if (filas.length) pendientes.push({ nombre: nombre, filas: filas });
+    });
+    db.horarios_pendientes = (db.horarios_pendientes || []).filter(function (pe) { return pe && !tocadas[pe.nombre]; }).concat(pendientes);
+    registrarAuditoria(db, s.email, 'Horarios', 'Horario guardado: ' + nuevas.length + ' horas de ' + Object.keys(docentes).length +
+      ' docentes; ' + pendientes.length + ' horarios sin docente.');
     escribirDb(db);
-    return { ok: true, guardados: nuevas.length, docentes: Object.keys(docentes).length, total: db.horarios.length };
+    return { ok: true, guardados: nuevas.length, docentes: Object.keys(docentes).length, total: db.horarios.length,
+      pendientes: db.horarios_pendientes.length };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function nombrePendiente(n) { return String(n || '').replace(/\s+/g, ' ').trim().slice(0, 120); }
+
+/** [email, dia, desde, hasta, grupo, aula] normalizada, o null si no es válida (email sin comprobar). */
+function filaHorarioValida(f) {
+  if (!Array.isArray(f) || f.length < 5) return null;
+  var dia = parseInt(f[1], 10), desde = minutosHora(f[2]), hasta = minutosHora(f[3]);
+  var grupo = String(f[4] || '').trim();
+  var aula = String(f[5] || '').replace(/[^0-9A-Za-zÁÉÍÓÚÜÑáéíóúüñºª _.\-\/]/g, '').trim().slice(0, 30);
+  if (!(dia >= 1 && dia <= 5) || desde === null || hasta === null || hasta <= desde || !/^[0-9A-Z_]+$/.test(grupo)) return null;
+  return [norm(f[0]), dia, textoHora(desde), textoHora(hasta), grupo, aula];
+}
+
+/**
+ * Panel: resolver un horario de Séneca sin docente. Si el correo ya es de un docente, se le asigna el horario
+ * (si estaba de baja, se reactiva); si no, se da de alta con el nombre y apellidos indicados.
+ * accion = 'asignar' (por defecto) o 'descartar' (p. ej. un docente que ya no está en el centro).
+ * Dar de alta requiere ser administrador de Convivencia, igual que en la pestaña Profesorado.
+ */
+function resolverHorarioPendiente(req) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var db = leerDb(true);
+    var s = sesionPanel(req, db);
+    var nombre = nombrePendiente(req.nombreSeneca);
+    var lista = db.horarios_pendientes || [];
+    var pe = null;
+    lista.forEach(function (x) { if (x && x.nombre === nombre) pe = x; });
+    if (!pe) fallo('NO_ENCONTRADO', 'Ese horario ya no está pendiente.');
+    var quitar = function () { db.horarios_pendientes = lista.filter(function (x) { return x !== pe; }); };
+    if (req.accion2 === 'descartar') {
+      quitar();
+      registrarAuditoria(db, s.email, 'Horarios', 'Horario de Séneca descartado: ' + nombre);
+      escribirDb(db);
+      return { ok: true };
+    }
+    var email = norm(req.email);
+    if (!/^[a-z0-9._%+\-]+@g\.educaand\.es$/.test(email)) fallo('EMAIL', 'El correo debe ser del dominio @g.educaand.es.');
+    var p = buscarProfesor(db, email);
+    var alta = false;
+    if (!p) {
+      if (!esAdmin(s.prof)) fallo('PROHIBIDO', 'Para dar de alta docentes hace falta ser administrador de Convivencia.');
+      var nom = String(req.nombre || '').trim().slice(0, 80), ape = String(req.apellidos || '').trim().slice(0, 120);
+      if (!nom || !ape) fallo('DATOS', 'Faltan el nombre o los apellidos.');
+      p = { id_profesor: 'prof-' + new Date().getTime() + '-' + Math.random().toString(36).slice(2, 6), email: email,
+            nombre: nom, apellidos: ape, dni: '', departamento: 'Claustro Docente', rol: 'ROLE_DOCENTE', estado: 'ACTIVO',
+            requiere_cambio_clave: true, fecha_modificacion_clave: new Date().toISOString() };
+      db.profesores.push(p);
+      db.deleted_profesores = (db.deleted_profesores || []).filter(function (x) { return norm(x) !== email && x !== p.id_profesor; });
+      alta = true;
+    } else if (p.estado === 'INACTIVO') {
+      if (!esAdmin(s.prof)) fallo('PROHIBIDO', 'Para reactivar docentes hace falta ser administrador de Convivencia.');
+      p.estado = 'ACTIVO';
+      delete p.motivo_baja;
+      delete p.fecha_baja;
+      alta = true;
+    }
+    db.horarios = (db.horarios || []).filter(function (f) { return f && norm(f[0]) !== email; })
+      .concat(pe.filas.map(function (f) { return [email].concat(f); }));
+    quitar();
+    registrarAuditoria(db, s.email, 'Docente/' + email, (alta ? 'Alta desde el horario de Séneca (' : 'Horario de Séneca asignado (') +
+      nombre + '): ' + pe.filas.length + ' horas.');
+    escribirDb(db);
+    return { ok: true, alta: alta, horas: pe.filas.length };
   } finally {
     lock.releaseLock();
   }
@@ -1727,7 +1815,7 @@ function guardar(req) {
 /** Jefatura/Convivencia: lo que envía es la referencia, sin perder lo que otros hayan guardado. */
 // Datos que solo gestiona el servidor: nunca se toman de lo que envía la app
 var CLAVES_SERVIDOR = ['credenciales_profesores', 'credenciales_v1_alternativas', 'reset_credenciales_emails',
-  'migracion_v2', 'saldos_antes_v2', 'horarios', 'permisos_intranet'];
+  'migracion_v2', 'saldos_antes_v2', 'horarios', 'permisos_intranet', 'horarios_pendientes'];
 
 /**
  * Lista de lo que la app dice haber cambiado (entrada.cambios). Si existe, de lo demás se conserva
