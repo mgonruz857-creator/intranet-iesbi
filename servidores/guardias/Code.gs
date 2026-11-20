@@ -33,7 +33,7 @@
 
 // ───────────────────────── Configuración ─────────────────────────
 
-var VERSION = '1.2.1';
+var VERSION = '1.2.2';
 var ZONA = 'Europe/Madrid';
 var DOMINIO = '@g.educaand.es';
 var DURACION_SESION_SEG = 21600;    // 6 horas (máximo de CacheService), se renueva con el uso
@@ -68,6 +68,7 @@ var MENSAJES = {
   'ERROR_YA_AUSENTE': 'Ya hay una ausencia registrada para alguna de esas horas.',
   'ERROR_NO_ES_DE_GUARDIA': 'Solo puede coger una guardia el docente que está de guardia a esa hora.',
   'ERROR_YA_ASIGNADA': 'Esa guardia ya está asignada.',
+  'ERROR_YA_TIENE_GUARDIA': 'Ya tiene otra guardia a esa hora.',
   'ERROR_OCUPADO': 'El sistema está atendiendo otras peticiones. Inténtelo de nuevo en unos segundos.',
   'ERROR_ACCION': 'Acción desconocida.',
   'ERROR_CONFIG': 'El servidor no está configurado del todo.'
@@ -451,7 +452,7 @@ function marcarHecha_(u, req, ahora) {
   if (guardias[i][G.asignada] !== u.email) exigirJefatura_(u);
   var hecha = req.hecha !== false;
   hoja_(HOJA_GUARDIAS).getRange(i + 2, G.estado + 1, 1, 4).setValues([[hecha ? 'HECHA' : 'PENDIENTE',
-    String(req.incidencias || '').trim().slice(0, 2000), u.email, ahora.toISOString()]]);
+    textoSeguro_(String(req.incidencias || '').trim().slice(0, 2000)), u.email, ahora.toISOString()]]);
   return { ok: true };
 }
 
@@ -476,6 +477,13 @@ function coger_(u, req, ahora) {
   var g = guardias[i];
   if (g[G.asignada]) return fallo_('ERROR_YA_ASIGNADA');
   if (!deGuardia_(u.email, diaSemana_(g[G.fecha]), minutos_(g[G.desde]), minutos_(g[G.hasta]))) return fallo_('ERROR_NO_ES_DE_GUARDIA');
+  // Nadie cubre dos grupos a la vez
+  var d1 = minutos_(g[G.desde]), h1 = minutos_(g[G.hasta]);
+  var ocupado = guardias.some(function (o, k) {
+    return k !== i && o[G.estado] !== 'ANULADA' && o[G.fecha] === g[G.fecha] && o[G.asignada] === u.email &&
+      solapa_(d1, h1, minutos_(o[G.desde]), minutos_(o[G.hasta]));
+  });
+  if (ocupado) return fallo_('ERROR_YA_TIENE_GUARDIA');
   hoja_(HOJA_GUARDIAS).getRange(i + 2, G.asignada + 1).setValues([[u.email]]);
   hoja_(HOJA_GUARDIAS).getRange(i + 2, G.actualizada + 1).setValues([[ahora.toISOString()]]);
   return { ok: true };
@@ -628,7 +636,7 @@ function anadirFilas_(nombre, filas) {
   var h = hoja_(nombre);
   var desde = h.getLastRow() + 1;
   h.getRange(desde, 1, filas.length, filas[0].length).setNumberFormat('@');
-  h.getRange(desde, 1, filas.length, filas[0].length).setValues(filas);
+  h.getRange(desde, 1, filas.length, filas[0].length).setValues(filas.map(function (f) { return f.map(textoSeguro_); }));
 }
 
 function indice_(filas, col, valor) {
@@ -687,6 +695,12 @@ function texto_(m) { return ('0' + Math.floor(m / 60)).slice(-2) + ':' + ('0' + 
 function comoHora_(v) { var m = minutos_(v); return m === null ? String(v || '') : texto_(m); }
 
 function solapa_(a1, a2, b1, b2) { return a1 < b2 && b1 < a2; }
+
+/** Texto escrito por un usuario que va a una celda: si empieza por = + - @ se guarda como texto, nunca como fórmula. */
+function textoSeguro_(v) {
+  if (typeof v !== 'string') return v;
+  return /^[=+\-@]/.test(v) ? "'" + v : v;
+}
 
 function limpiar_(v, max) {
   return String(v || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, max);

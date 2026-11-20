@@ -35,7 +35,7 @@
 
 // ───────────────────────── Configuración ─────────────────────────
 
-var VERSION = '1.3.1';
+var VERSION = '1.3.2';
 var ZONA = 'Europe/Madrid';
 var DOMINIO = '@g.educaand.es';
 var CUPO_GLOBAL = 5;
@@ -496,6 +496,8 @@ function autorizar_(usuario, datos, ahora) {
   fila[H.justificacion_excepcional] = esExcepcional ? excepcional : 'N/A';
   fila[H.estado] = 'ACTIVE';
 
+  fila[H.justificacion] = textoSeguro_(fila[H.justificacion]);
+  fila[H.justificacion_excepcional] = textoSeguro_(fila[H.justificacion_excepcional]);
   var hoja = hoja_(HOJA_HISTORICO);
   hoja.getRange(hoja.getLastRow() + 1, 1, 1, N_COLUMNAS).setValues([fila]);
   SpreadsheetApp.flush();
@@ -959,6 +961,12 @@ function fallo_(codigo, extra, mensaje) {
 }
 
 function codigoDeError_(err) { return String(err && err.message || err); }
+
+/** Texto escrito por un usuario que va a una celda: si empieza por = + - @ se guarda como texto, nunca como fórmula. */
+function textoSeguro_(v) {
+  if (typeof v !== 'string') return v;
+  return /^[=+\-@]/.test(v) ? "'" + v : v;
+}
 
 /** Nombre del docente para mostrarlo (en vez de su correo). */
 function nombreDocente_(email) {
