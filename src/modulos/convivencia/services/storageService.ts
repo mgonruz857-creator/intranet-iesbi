@@ -658,20 +658,7 @@ export class StorageService {
   }
 
   static getProfesores(): Profesor[] {
-    const parsed: Profesor[] = [...memoryProfesores];
-    const excludedEmails = new Set([
-      'pepe@g.educaand.es',
-      'carmen.luque@g.educaand.es',
-      'rafael.martinez@g.educaand.es',
-      'elena.castillo@g.educaand.es'
-    ]);
-    const excludedIds = new Set(['prof-pepe', 'prof-02', 'prof-03', 'prof-04']);
-
-    const filtered = parsed.filter(p => 
-      p && p.email &&
-      !excludedEmails.has(p.email.toLowerCase().trim()) && 
-      !excludedIds.has(p.id_profesor)
-    );
+    const filtered: Profesor[] = [...memoryProfesores].filter(p => p && p.email);
 
     let adminFound = false;
     const mapped = filtered.map(p => {
@@ -698,10 +685,6 @@ export class StorageService {
         ...PROFESORES_INICIALES[0],
         estado: 'ACTIVO',
       });
-    }
-
-    if (filtered.length !== parsed.length) {
-      memoryProfesores = [...mapped];
     }
 
     return mapped;

@@ -126,7 +126,8 @@ más adelante `proyectoIntranet/PRODUCCION/`). Siempre en Mi unidad, mismo propi
       resistencia (archivo estropeado, pestañas borradas, peticiones raras) y accesibilidad con axe-core en móvil y
       ordenador (`accesibilidad.cjs`, con el servidor local). Arreglado: texto que empieza por `=` en las hojas de
       salidas/guardias se guarda como texto (Salidas 1.3.2, Guardias 1.2.2); nadie coge dos guardias a la misma hora;
-      contraste de los botones azules (sky-700) y etiqueta del selector de docente del parte.
+      contraste de los botones azules (sky-700) y etiqueta del selector de docente del parte. Quitado el filtro heredado
+      que ocultaba en la app a los docentes `prof-02/03/04` y cuatro correos de prueba (`getProfesores`).
 
 Resumen de la propuesta:
 - Una única fuente de "datos del centro" (profesorado, alumnado, grupos, horarios, curso escolar) con un panel
