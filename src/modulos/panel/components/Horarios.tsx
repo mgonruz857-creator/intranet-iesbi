@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { FileUp, Save, UserPlus, X } from 'lucide-react';
-import { llamarApi, GRUPOS, etiquetaGrupo, nombreCompleto, nombreDeSeneca, type DocentePanel, type FilaHorario, type HorarioPendiente } from '../api';
+import { llamarApi, GRUPOS, etiquetaGrupo, nombreCompleto, nombreDeSeneca, conHorarioEfectivo, type DocentePanel, type FilaHorario, type HorarioPendiente, type Sustitucion } from '../api';
+import Sustituciones from './Sustituciones';
 import { AuthService } from '../../convivencia/services/authService';
 import { buscarDocente, grupoAutomatico, interpretarPagina, tipoGuardia, type PaginaHorario } from '../../../nucleo/seneca/horarioSeneca';
 
@@ -11,15 +12,16 @@ interface Props {
   profesores: DocentePanel[];
   horarios: FilaHorario[];
   pendientes: HorarioPendiente[];
+  sustituciones: Sustitucion[];
   avisar: (texto: string, error?: boolean) => void;
   alGuardar: () => void;
 }
 
-export default function Horarios({ profesores, horarios, pendientes, avisar, alGuardar }: Props) {
+export default function Horarios({ profesores, horarios, pendientes, sustituciones, avisar, alGuardar }: Props) {
   const activos = profesores.filter((p) => p.estado !== 'INACTIVO');
   // En Séneca el nombre viene como "APELLIDOS,NOMBRE"
   const docentes = activos.map((p) => ({ email: p.email.toLowerCase(), nombre: nombreCompleto(p) }));
-  const conHorario = new Set(horarios.map((f) => f[0]));
+  const conHorario = conHorarioEfectivo(horarios, sustituciones);
   const sinHorario = docentes.filter((d) => !conHorario.has(d.email));
   return (
     <div className="space-y-4">
@@ -40,6 +42,7 @@ export default function Horarios({ profesores, horarios, pendientes, avisar, alG
           </ul>
         </section>
       )}
+      <Sustituciones profesores={profesores} sustituciones={sustituciones} avisar={avisar} alCambiar={alGuardar} />
       <section className="bg-white border border-slate-200 rounded-2xl p-4 text-sm space-y-2">
         <h2 className="text-sm font-bold">Estado</h2>
         <p className="text-slate-600">

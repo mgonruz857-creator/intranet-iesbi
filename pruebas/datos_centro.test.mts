@@ -117,5 +117,44 @@ leido2.horarios_pendientes = [{ nombre: 'X', filas: [] }];
 srv.post({ accion: 'guardar', token: tAdmin, data: leido2 });
 ok('"guardar" de convivencia no toca los pendientes', srv.post({ accion: 'panelLeer', token: tAdmin }).pendientes.length === 0);
 
+console.log('== Sustituciones');
+const SUS1 = 'sustituta.uno@g.educaand.es', SUS2 = 'sustituto.dos@g.educaand.es';
+const sus = (datos: any, token = tAdmin) => srv.post({ accion: 'gestionarSustitucion', token, ...datos });
+srv.post({ accion: 'guardarHorarios', token: tAdmin, filas: [[DOC, 1, '08:30', '09:30', '1ESO_A', 'A12'], [DOC, 2, '10:30', '11:30', 'GUARDIA', '']], docentes: [DOC] });
+r = sus({ operacion: 'iniciar', titular: DOC, email: SUS1, nombre: 'Sara', apellidos: 'Sustituta' }, tDoc);
+ok('solo el panel registra sustituciones', !r.ok && r.codigo === 'PROHIBIDO');
+r = sus({ operacion: 'iniciar', titular: DOC, email: SUS1, nombre: 'Sara', apellidos: 'Sustituta' });
+ok('se inicia con un sustituto nuevo (alta)', r.ok && r.sustitucion.sustituto === SUS1 && r.sustitucion.tutoria === '1ESO_A');
+const idSus = r.sustitucion.id;
+r = srv.post({ accion: 'login', email: DOC, clave: 'clave2026' });
+ok('el titular ya no puede entrar', !r.ok && r.codigo === 'BAJA');
+ok('...y su sesión abierta deja de valer', srv.post({ accion: 'perfilIntranet', token: tDoc }).codigo === 'NO_AUTH');
+ok('...estadoCuenta lo da como no activo', srv.post({ accion: 'estadoCuenta', email: DOC }).activo === false);
+let panel = srv.post({ accion: 'panelLeer', token: tAdmin });
+ok('la tutoría pasa al sustituto', panel.profesores.find((p: any) => p.email === SUS1).tutor_de_grupo === '1ESO_A'
+  && !panel.profesores.find((p: any) => p.email === DOC).tutor_de_grupo);
+r = srv.post({ accion: 'datosCentro', peticion: peticion('guardias', secreto) });
+ok('los módulos no ven al titular', !r.profesores.some((p: any) => p.email === DOC));
+ok('el horario del titular lo usa el sustituto (guardias incluidas)', r.horarios.filter((f: any) => f[0] === SUS1).length === 2
+  && !r.horarios.some((f: any) => f[0] === DOC));
+ok('el horario guardado sigue siendo del titular (se presta, no se copia)', panel.horarios.filter((f: any) => f[0] === DOC).length === 2);
+r = sus({ operacion: 'iniciar', titular: DOC, email: SUS2, nombre: 'X', apellidos: 'Y' });
+ok('no puede haber dos sustituciones del mismo titular', !r.ok);
+r = sus({ operacion: 'cambiar', id: idSus, email: SUS2, nombre: 'Samuel', apellidos: 'Sustituto Dos', bajaAnterior: true });
+ok('si el sustituto se va, se asigna otro', r.ok && r.sustitucion.sustituto === SUS2 && r.sustitucion.anteriores[0].sustituto === SUS1);
+panel = srv.post({ accion: 'panelLeer', token: tAdmin });
+ok('...el anterior queda de baja y la tutoría pasa al nuevo', panel.profesores.find((p: any) => p.email === SUS1).estado === 'INACTIVO'
+  && panel.profesores.find((p: any) => p.email === SUS2).tutor_de_grupo === '1ESO_A');
+r = srv.post({ accion: 'datosCentro', peticion: peticion('salidas', secreto) });
+ok('...y el nuevo usa el horario (sin guardias para salidas)', r.horarios.filter((f: any) => f[0] === SUS2).length === 1);
+r = sus({ operacion: 'finalizar', id: idSus, bajaSustituto: true });
+ok('al volver el titular se finaliza', r.ok && r.sustitucion.estado === 'FINALIZADA');
+panel = srv.post({ accion: 'panelLeer', token: tAdmin });
+ok('el titular recupera la tutoría y el sustituto queda de baja', panel.profesores.find((p: any) => p.email === DOC).tutor_de_grupo === '1ESO_A'
+  && panel.profesores.find((p: any) => p.email === SUS2).estado === 'INACTIVO');
+ok('el titular vuelve a entrar', srv.post({ accion: 'login', email: DOC, clave: 'clave2026' }).ok === true);
+r = srv.post({ accion: 'datosCentro', peticion: peticion('guardias', secreto) });
+ok('y vuelve a tener su horario en los módulos', r.horarios.filter((f: any) => f[0] === DOC).length === 2);
+
 console.log(fallos ? `\n${fallos} FALLO(S)` : '\nTodo correcto');
 if (fallos) process.exit(1);

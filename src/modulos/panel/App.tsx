@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, CalendarClock, DatabaseBackup, GraduationCap, ShieldCheck, Users } from 'lucide-react';
-import { llamarApi, type DocentePanel, type FilaHorario, type HorarioPendiente } from './api';
+import { llamarApi, conHorarioEfectivo, type DocentePanel, type FilaHorario, type HorarioPendiente, type Sustitucion } from './api';
 import Profesorado from './components/Profesorado';
 import Horarios from './components/Horarios';
 
@@ -16,6 +16,7 @@ export default function App() {
   const [profesores, setProfesores] = useState<DocentePanel[] | null>(null);
   const [horarios, setHorarios] = useState<FilaHorario[]>([]);
   const [pendientes, setPendientes] = useState<HorarioPendiente[]>([]);
+  const [sustituciones, setSustituciones] = useState<Sustitucion[]>([]);
   const [error, setError] = useState('');
   const [aviso, setAviso] = useState<AvisoPanel | null>(null);
 
@@ -34,6 +35,7 @@ export default function App() {
     setProfesores(r.profesores as DocentePanel[]);
     setHorarios(r.horarios as FilaHorario[]);
     setPendientes((r.pendientes || []) as HorarioPendiente[]);
+    setSustituciones((r.sustituciones || []) as Sustitucion[]);
   }, []);
 
   useEffect(() => { cargar(); }, [cargar]);
@@ -67,7 +69,7 @@ export default function App() {
       <main className="max-w-6xl mx-auto px-4 py-4 space-y-4">
         {profesores && (() => {
           // Aviso permanente: se quita solo cuando ya no queda nada pendiente
-          const conHorario = new Set(horarios.map((f) => String(f[0]).toLowerCase()));
+          const conHorario = conHorarioEfectivo(horarios, sustituciones);
           const sinHorario = profesores.filter((p) => p.estado !== 'INACTIVO' && !conHorario.has(p.email.toLowerCase())).length;
           if (!sinHorario && !pendientes.length) return null;
           const partes = [
@@ -95,7 +97,7 @@ export default function App() {
         ) : pestana === 'permisos' ? (
           <Profesorado profesores={profesores} horarios={horarios} avisar={avisar} alCambiar={setProfesores} />
         ) : (
-          <Horarios profesores={profesores} horarios={horarios} pendientes={pendientes} avisar={avisar} alGuardar={cargar} />
+          <Horarios profesores={profesores} horarios={horarios} pendientes={pendientes} sustituciones={sustituciones} avisar={avisar} alGuardar={cargar} />
         )}
       </main>
       {aviso && (

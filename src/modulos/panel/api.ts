@@ -18,6 +18,24 @@ export interface DocentePanel {
 /** [email, día 1-5, desde, hasta, grupo (o GUARDIA / GUARDIA_RECREO), aula (opcional)] */
 export type FilaHorario = [string, number, string, string, string, string?];
 
+export interface Sustitucion {
+  id: string;
+  titular: string;
+  sustituto: string;
+  desde: string;
+  hasta: string;
+  estado: 'ACTIVA' | 'FINALIZADA';
+  tutoria: string;
+  anteriores: { sustituto: string; desde: string; hasta: string }[];
+}
+
+/** Correos que tienen horario: los suyos y los que usan el horario de un titular de baja. */
+export function conHorarioEfectivo(horarios: FilaHorario[], sustituciones: Sustitucion[]): Set<string> {
+  const s = new Set(horarios.map((f) => String(f[0]).toLowerCase()));
+  sustituciones.forEach((x) => { if (x.estado === 'ACTIVA' && s.has(x.titular)) s.add(x.sustituto); });
+  return s;
+}
+
 /** Página del PDF de Séneca sin docente: nombre tal como viene y filas [día, desde, hasta, grupo, aula]. */
 export interface HorarioPendiente { nombre: string; filas: [number, string, string, string, string][] }
 

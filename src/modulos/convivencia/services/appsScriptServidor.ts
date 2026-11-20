@@ -840,6 +840,7 @@ function doPost(e) {
       case 'guardarPermisos': return salida(guardarPermisos(req));
       case 'guardarHorarios': return salida(guardarHorarios(req));
       case 'resolverHorarioPendiente': return salida(resolverHorarioPendiente(req));
+      case 'gestionarSustitucion': return salida(gestionarSustitucion(req));
       case 'datosCentro': return salida(datosCentro(req));
       default: return salida({ ok: false, error: 'Acción desconocida.' });
     }
@@ -1300,6 +1301,7 @@ function sesion(token, db) {
   }
   var p = buscarProfesor(db, email);
   if (!p || p.estado === 'INACTIVO') { cerrarSesion(token); fallo('NO_AUTH', 'Su cuenta ya no tiene acceso.'); }
+  if (sustitucionDeTitular(db, email)) { cerrarSesion(token); fallo('NO_AUTH', 'Su cuenta está de baja temporal mientras dura su sustitución.'); }
   cache.put('SES_' + token, valor, DURACION_SESION_SEG);
   return { email: norm(email), prof: p, admin: esAdmin(p) };
 }
@@ -1379,7 +1381,8 @@ function panelLeer(req) {
     c.permisos = permisosDe(db, p);
     return c;
   });
-  return { ok: true, profesores: profesores, horarios: db.horarios || [], pendientes: db.horarios_pendientes || [] };
+  return { ok: true, profesores: profesores, horarios: db.horarios || [], pendientes: db.horarios_pendientes || [],
+           sustituciones: db.sustituciones || [] };
 }
 
 /** Panel: cambia los permisos de un docente. Siempre debe quedar al menos un administrador del panel. */
@@ -1490,6 +1493,139 @@ function filaHorarioValida(f) {
 }
 
 /**
+ * Docente indicado por correo (req.email). Si no existe, se da de alta con req.nombre y req.apellidos; si está de
+ * baja, se reactiva. Las dos cosas exigen ser administrador de Convivencia. Devuelve { email, prof, alta }.
+ */
+function docenteParaPanel(db, s, req) {
+  var email = norm(req.email);
+  if (!/^[a-z0-9._%+\-]+@g\.educaand\.es$/.test(email)) fallo('EMAIL', 'El correo debe ser del dominio @g.educaand.es.');
+  var p = buscarProfesor(db, email);
+  var alta = false;
+  if (!p) {
+    if (!esAdmin(s.prof)) fallo('PROHIBIDO', 'Para dar de alta docentes hace falta ser administrador de Convivencia.');
+    var nom = String(req.nombre || '').trim().slice(0, 80), ape = String(req.apellidos || '').trim().slice(0, 120);
+    if (!nom || !ape) fallo('DATOS', 'Faltan el nombre o los apellidos.');
+    p = { id_profesor: 'prof-' + new Date().getTime() + '-' + Math.random().toString(36).slice(2, 6), email: email,
+          nombre: nom, apellidos: ape, dni: '', departamento: 'Claustro Docente', rol: 'ROLE_DOCENTE', estado: 'ACTIVO',
+          requiere_cambio_clave: true, fecha_modificacion_clave: new Date().toISOString() };
+    db.profesores.push(p);
+    db.deleted_profesores = (db.deleted_profesores || []).filter(function (x) { return norm(x) !== email && x !== p.id_profesor; });
+    alta = true;
+  } else if (p.estado === 'INACTIVO') {
+    if (!esAdmin(s.prof)) fallo('PROHIBIDO', 'Para reactivar docentes hace falta ser administrador de Convivencia.');
+    p.estado = 'ACTIVO';
+    delete p.motivo_baja;
+    delete p.fecha_baja;
+    alta = true;
+  }
+  return { email: email, prof: p, alta: alta };
+}
+
+// ------------------------------------------------------------------ Sustituciones
+
+/**
+ * Sustitución: un docente (titular) de baja temporal y quien le sustituye. Mientras está activa:
+ *  - el titular no puede entrar en la intranet ni cuenta para los módulos;
+ *  - el sustituto usa el horario del titular (se presta, no se copia) y su tutoría (si la tiene).
+ * El sustituto puede cambiar (si también se va, se asigna otro). Al terminar, todo vuelve al titular.
+ * db.sustituciones = [{ id, titular, sustituto, desde, hasta, estado: 'ACTIVA' | 'FINALIZADA', tutoria,
+ *                       anteriores: [{ sustituto, desde, hasta }] }]
+ */
+function sustitucionDeTitular(db, email) {
+  var e = norm(email), r = null;
+  (db.sustituciones || []).forEach(function (x) { if (x && x.estado === 'ACTIVA' && x.titular === e) r = x; });
+  return r;
+}
+
+function hoyTexto() { return Utilities.formatDate(new Date(), 'Europe/Madrid', 'yyyy-MM-dd'); }
+
+/** Horarios tal como los usan los módulos: las filas del titular de baja pasan a su sustituto. */
+function horariosEfectivos(db) {
+  var presta = {};
+  (db.sustituciones || []).forEach(function (x) { if (x && x.estado === 'ACTIVA') presta[x.titular] = x.sustituto; });
+  return (db.horarios || []).filter(function (f) { return f; }).map(function (f) {
+    var dueno = presta[norm(f[0])];
+    return dueno ? [dueno].concat(f.slice(1)) : f;
+  });
+}
+
+function moverTutoria(db, deEmail, aEmail, grupo) {
+  if (!grupo) return;
+  var de = buscarProfesor(db, deEmail), a = buscarProfesor(db, aEmail);
+  if (de && de.tutor_de_grupo === grupo) { de.tutor_de_grupo = ''; }
+  if (a) { a.tutor_de_grupo = grupo; a.tutoria_asignada_por = 'JEFATURA'; }
+}
+
+function darDeBajaPorSustitucion(db, email) {
+  var p = buscarProfesor(db, email);
+  if (!p || p.estado === 'INACTIVO') return;
+  p.estado = 'INACTIVO';
+  p.motivo_baja = 'Fin de sustitución';
+  p.fecha_baja = new Date().toISOString();
+  invalidarSesiones(email);
+}
+
+function gestionarSustitucion(req) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var db = leerDb(true);
+    var s = sesionPanel(req, db);
+    db.sustituciones = db.sustituciones || [];
+    var hoy = hoyTexto();
+    var accion = String(req.operacion || '');
+    var r;
+    if (accion === 'iniciar') {
+      var titular = buscarProfesor(db, req.titular);
+      if (!titular || titular.estado === 'INACTIVO') fallo('DATOS', 'El titular tiene que ser un docente en activo.');
+      var et = norm(titular.email);
+      if (et === s.email) fallo('DATOS', 'No puede registrar su propia sustitución.');
+      if (sustitucionDeTitular(db, et)) fallo('DATOS', 'Ese docente ya tiene una sustitución en curso.');
+      if ((db.sustituciones || []).some(function (x) { return x.estado === 'ACTIVA' && x.sustituto === et; }))
+        fallo('DATOS', 'Ese docente está sustituyendo a otro: cambie antes esa sustitución.');
+      var d = docenteParaPanel(db, s, req);
+      if (d.email === et) fallo('DATOS', 'El sustituto no puede ser el propio titular.');
+      if (sustitucionDeTitular(db, d.email)) fallo('DATOS', 'El sustituto está de baja temporal.');
+      r = { id: 'sus-' + new Date().getTime() + '-' + Math.random().toString(36).slice(2, 6), titular: et, sustituto: d.email,
+            desde: hoy, hasta: '', estado: 'ACTIVA', tutoria: titular.tutor_de_grupo || '', anteriores: [] };
+      db.sustituciones.push(r);
+      moverTutoria(db, et, d.email, r.tutoria);
+      invalidarSesiones(et);
+      registrarAuditoria(db, s.email, 'Docente/' + et, 'Sustitución iniciada: le sustituye ' + d.email + (d.alta ? ' (alta nueva)' : '') +
+        (r.tutoria ? '; tutoría de ' + r.tutoria + ' al sustituto' : '') + '.');
+    } else {
+      db.sustituciones.forEach(function (x) { if (x && x.id === req.id && x.estado === 'ACTIVA') r = x; });
+      if (!r) fallo('NO_ENCONTRADO', 'Esa sustitución ya no está en curso.');
+      if (accion === 'cambiar') {
+        var anterior = r.sustituto;
+        var n = docenteParaPanel(db, s, req);
+        if (n.email === anterior || n.email === r.titular) fallo('DATOS', 'Elija otro docente.');
+        r.anteriores.push({ sustituto: anterior, desde: r.desde, hasta: hoy });
+        r.sustituto = n.email;
+        r.desde = hoy;
+        moverTutoria(db, anterior, n.email, r.tutoria);
+        if (req.bajaAnterior) darDeBajaPorSustitucion(db, anterior);
+        registrarAuditoria(db, s.email, 'Docente/' + r.titular, 'Cambio de sustituto: ' + anterior + ' → ' + n.email +
+          (req.bajaAnterior ? ' (' + anterior + ' de baja)' : '') + '.');
+      } else if (accion === 'finalizar') {
+        r.estado = 'FINALIZADA';
+        r.hasta = hoy;
+        moverTutoria(db, r.sustituto, r.titular, r.tutoria);
+        if (req.bajaSustituto) darDeBajaPorSustitucion(db, r.sustituto);
+        registrarAuditoria(db, s.email, 'Docente/' + r.titular, 'Fin de sustitución: vuelve el titular' +
+          (req.bajaSustituto ? '; ' + r.sustituto + ' de baja' : '') + '.');
+      } else {
+        fallo('DATOS', 'Operación no válida.');
+      }
+    }
+    escribirDb(db);
+    return { ok: true, sustitucion: r };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
  * Panel: resolver un horario de Séneca sin docente. Si el correo ya es de un docente, se le asigna el horario
  * (si estaba de baja, se reactiva); si no, se da de alta con el nombre y apellidos indicados.
  * accion = 'asignar' (por defecto) o 'descartar' (p. ej. un docente que ya no está en el centro).
@@ -1513,27 +1649,8 @@ function resolverHorarioPendiente(req) {
       escribirDb(db);
       return { ok: true };
     }
-    var email = norm(req.email);
-    if (!/^[a-z0-9._%+\-]+@g\.educaand\.es$/.test(email)) fallo('EMAIL', 'El correo debe ser del dominio @g.educaand.es.');
-    var p = buscarProfesor(db, email);
-    var alta = false;
-    if (!p) {
-      if (!esAdmin(s.prof)) fallo('PROHIBIDO', 'Para dar de alta docentes hace falta ser administrador de Convivencia.');
-      var nom = String(req.nombre || '').trim().slice(0, 80), ape = String(req.apellidos || '').trim().slice(0, 120);
-      if (!nom || !ape) fallo('DATOS', 'Faltan el nombre o los apellidos.');
-      p = { id_profesor: 'prof-' + new Date().getTime() + '-' + Math.random().toString(36).slice(2, 6), email: email,
-            nombre: nom, apellidos: ape, dni: '', departamento: 'Claustro Docente', rol: 'ROLE_DOCENTE', estado: 'ACTIVO',
-            requiere_cambio_clave: true, fecha_modificacion_clave: new Date().toISOString() };
-      db.profesores.push(p);
-      db.deleted_profesores = (db.deleted_profesores || []).filter(function (x) { return norm(x) !== email && x !== p.id_profesor; });
-      alta = true;
-    } else if (p.estado === 'INACTIVO') {
-      if (!esAdmin(s.prof)) fallo('PROHIBIDO', 'Para reactivar docentes hace falta ser administrador de Convivencia.');
-      p.estado = 'ACTIVO';
-      delete p.motivo_baja;
-      delete p.fecha_baja;
-      alta = true;
-    }
+    var r0 = docenteParaPanel(db, s, req);
+    var email = r0.email, alta = r0.alta;
     db.horarios = (db.horarios || []).filter(function (f) { return f && norm(f[0]) !== email; })
       .concat(pe.filas.map(function (f) { return [email].concat(f); }));
     quitar();
@@ -1560,14 +1677,14 @@ function datosCentro(req) {
   var d = JSON.parse(datos);
   if (MODULOS_INTRANET.indexOf(d.modulo) < 0 || !(d.exp > new Date().getTime())) fallo('NO_AUTH', 'Petición caducada o no válida.');
   var db = leerDb();
-  var profesores = (db.profesores || []).filter(function (p) { return p && p.email && p.estado !== 'INACTIVO'; })
+  var profesores = (db.profesores || []).filter(function (p) { return p && p.email && p.estado !== 'INACTIVO' && !sustitucionDeTitular(db, p.email); })
     .map(function (p) {
       return { email: norm(p.email), nombre: p.nombre || '', apellidos: p.apellidos || '',
                tutor_de_grupo: p.tutor_de_grupo || '', permiso: permisosDe(db, p)[d.modulo] };
     });
   var alumnos = (db.alumnos || []).filter(function (a) { return a && a.id_alumno && a.estado !== 'BAJA'; })
     .map(function (a) { return { id_alumno: a.id_alumno, nombre: a.nombre || '', apellidos: a.apellidos || '', grupo: a.grupo || '' }; });
-  var horarios = db.horarios || [];
+  var horarios = horariosEfectivos(db);
   // Salidas no necesita las horas de guardia (no son clases con grupo)
   if (d.modulo === 'salidas') horarios = horarios.filter(function (f) { return f && !/^GUARDIA/.test(String(f[4] || '')); });
   return { ok: true, profesores: profesores, alumnos: alumnos, horarios: horarios };
@@ -1580,7 +1697,7 @@ function estadoCuenta(req) {
   var p = buscarProfesor(db, req.email);
   if (!p) return { ok: true, registrado: false };
   // Sin sesión no se revela el motivo de la baja (puede ser un dato personal)
-  if (p.estado === 'INACTIVO') return { ok: true, registrado: true, activo: false };
+  if (p.estado === 'INACTIVO' || sustitucionDeTitular(db, req.email)) return { ok: true, registrado: true, activo: false };
   return { ok: true, registrado: true, activo: true, tieneClave: tieneClave(db, req.email) };
 }
 
@@ -1604,6 +1721,7 @@ function login(req) {
     if (!p || p.estado === 'INACTIVO') { db = leerDb(true); p = buscarProfesor(db, email); }
     if (!p) fallo('NO_REGISTRADO', 'La cuenta "' + email + '" no figura en el claustro. Debe darla de alta Jefatura de Estudios.');
     if (p.estado === 'INACTIVO') fallo('BAJA', 'La cuenta "' + email + '" está de baja en el centro.');
+    if (sustitucionDeTitular(db, email)) fallo('BAJA', 'La cuenta "' + email + '" está de baja temporal (hay un docente sustituyéndole).');
 
     var guardada = claveGuardada(email);
     var antigua = claveAntigua(db, email);
@@ -1815,7 +1933,7 @@ function guardar(req) {
 /** Jefatura/Convivencia: lo que envía es la referencia, sin perder lo que otros hayan guardado. */
 // Datos que solo gestiona el servidor: nunca se toman de lo que envía la app
 var CLAVES_SERVIDOR = ['credenciales_profesores', 'credenciales_v1_alternativas', 'reset_credenciales_emails',
-  'migracion_v2', 'saldos_antes_v2', 'horarios', 'permisos_intranet', 'horarios_pendientes'];
+  'migracion_v2', 'saldos_antes_v2', 'horarios', 'permisos_intranet', 'horarios_pendientes', 'sustituciones'];
 
 /**
  * Lista de lo que la app dice haber cambiado (entrada.cambios). Si existe, de lo demás se conserva

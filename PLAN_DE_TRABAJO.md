@@ -41,6 +41,11 @@ Igual que con convivencia: los cambios nuevos de salidas, mejor hacerlos ya en l
       horarios de Séneca sin docente). Las páginas del PDF sin docente se guardan como pendientes
       (`horarios_pendientes`); desde Horarios se asignan, se da de alta al docente con el nombre de Séneca (el horario
       se le asigna solo; requiere ser administrador de Convivencia) o se descartan (acción `resolverHorarioPendiente`).
+- [x] Sustituciones (20/11, decisiones de Miguel Ángel): en Panel → Horarios. Mientras dura, el titular no puede entrar
+      (login, sesión y vales), no aparece en `datosCentro`, y su horario (prestado, no copiado: `horariosEfectivos`) y su
+      tutoría pasan al sustituto; el titular de baja no recibe nada. Si el sustituto se va, se asigna otro (con opción
+      de darlo de baja). Al volver el titular, todo vuelve a él y se puede dar de baja al sustituto
+      (acción `gestionarSustitucion`, datos en `sustituciones`).
 
 ## Pendiente (cuando proceda) – Panel de control unificado
 
