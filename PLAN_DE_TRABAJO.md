@@ -147,6 +147,11 @@ Cuestiones a plantear antes de empezar:
 
 ## Paso al centro
 
+Decidido el 24/11/2026: **de una sola vez**, el día que diga Miguel Ángel. Esa tarde se copian los datos de convivencia
+(solo lectura) a la intranet, la intranet pasa a PRODUCCIÓN y convivenciaiesbi.github.io se sustituye por una página
+que avisa de la nueva dirección y lleva a la intranet en 5 segundos (único cambio en la app del centro, solo con su
+confirmación ese día; su código queda en el repositorio y su servidor y Drive, intactos como respaldo).
+
 - [ ] Transferir el repositorio a la organización `intranetiesbi`, renombrarlo `intranetiesbi.github.io`
       y publicar con PRODUCCION, cuando Miguel Ángel lo diga.
 - [ ] Al pasar a producción (acordado el 19/11/2026, NO antes): quitar el botón "Vaciar alumnos y partes" y el
