@@ -151,6 +151,10 @@ Decidido el 24/11/2026: **de una sola vez**, el día que diga Miguel Ángel. Esa
 (solo lectura) a la intranet, la intranet pasa a PRODUCCIÓN y convivenciaiesbi.github.io se sustituye por una página
 que avisa de la nueva dirección y lleva a la intranet en 5 segundos (único cambio en la app del centro, solo con su
 confirmación ese día; su código queda en el repositorio y su servidor y Drive, intactos como respaldo).
+Preparado (24/11): carpeta, hojas y proyecto API_Intranet_PRODUCCION creados vacíos en la cuenta del centro
+(identificadores en /mnt/project-files/intranet/produccion/identificadores.md); organización GitHub `intranetiesbi`
+creada; guía del día https://claude.ai/artifact/DJKHDFNPNnmwUYndTv5v1C; página de aviso sin publicar en
+/mnt/project-files/intranet/produccion/aviso-app-convivencia/. Falta: fecha y elegir repositorio de producción.
 
 - [ ] Transferir el repositorio a la organización `intranetiesbi`, renombrarlo `intranetiesbi.github.io`
       y publicar con PRODUCCION, cuando Miguel Ángel lo diga.
