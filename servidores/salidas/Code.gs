@@ -35,13 +35,14 @@
 
 // ───────────────────────── Configuración ─────────────────────────
 
-var VERSION = '1.3.2';
+var VERSION = '1.4.0';
 var ZONA = 'Europe/Madrid';
 var DOMINIO = '@g.educaand.es';
-var CUPO_GLOBAL = 5;
+var CUPO_EDIFICIO = 2;              // máximo de alumnos fuera a la vez en cada edificio (A y B)
+var CUPO_GLOBAL = 2 * CUPO_EDIFICIO; // total del centro (dos edificios)
 var CUPO_AULA = 1;
 var MINUTOS_MAXIMOS = 5;            // temporizador de regreso
-var MIN_JUSTIFICACION = 5;          // fuera de hora preferente
+var MIN_JUSTIFICACION = 5;          // fuera de hora recomendada (y excepción a 1ª o 4ª hora)
 var MIN_JUSTIFICACION_EXCEPCIONAL = 10; // 2ª salida en el mismo bloque
 var MINUTOS_PARA_ANULAR = 2;        // el docente puede anular su propia salida por error
 var ESPERA_CERROJO_MS = 10000;
@@ -74,16 +75,34 @@ var H = { id: 0, fecha: 1, alumno: 2, aula: 3, docente: 4, inicio: 5, fin: 6, bl
   justificacion: 9, excepcional: 10, justificacion_excepcional: 11, estado: 12, cerrado_por: 13 };
 var N_COLUMNAS = 14;
 
-// Jornada en minutos desde las 00:00 (hora de Madrid)
+// Jornada en minutos desde las 00:00 (hora de Madrid). Normas del centro (27/11/2026):
+//   - 1ª y 4ª hora: no se sale, salvo excepción que autoriza el propio profesor (con motivo).
+//   - 3ª y 5ª hora: horas recomendadas (autorización directa).
+//   - 2ª y 6ª hora: se puede salir indicando el motivo.
+//   - Un alumno sale una vez por tramo (BLOCK_1 antes del recreo, BLOCK_2 después).
 var FRANJAS = [
-  { desde: 510, hasta: 570, bloque: 'BLOCK_1', preferente: false, nombre: '1ª hora' },
-  { desde: 570, hasta: 630, bloque: 'BLOCK_1', preferente: true, nombre: 'Hora preferente A' },
-  { desde: 630, hasta: 690, bloque: 'BLOCK_1', preferente: false, nombre: '3ª hora' },
-  { desde: 690, hasta: 720, bloque: 'RECREO', preferente: false, nombre: 'Recreo' },
-  { desde: 720, hasta: 780, bloque: 'BLOCK_2', preferente: false, nombre: '4ª hora' },
-  { desde: 780, hasta: 840, bloque: 'BLOCK_2', preferente: true, nombre: 'Hora preferente B' },
-  { desde: 840, hasta: 900, bloque: 'BLOCK_2', preferente: false, nombre: '6ª hora' }
+  { desde: 510, hasta: 570, bloque: 'BLOCK_1', preferente: false, restringida: true, nombre: '1ª hora' },
+  { desde: 570, hasta: 630, bloque: 'BLOCK_1', preferente: false, restringida: false, nombre: '2ª hora' },
+  { desde: 630, hasta: 690, bloque: 'BLOCK_1', preferente: true, restringida: false, nombre: '3ª hora (recomendada)' },
+  { desde: 690, hasta: 720, bloque: 'RECREO', preferente: false, restringida: false, nombre: 'Recreo' },
+  { desde: 720, hasta: 780, bloque: 'BLOCK_2', preferente: false, restringida: true, nombre: '4ª hora' },
+  { desde: 780, hasta: 840, bloque: 'BLOCK_2', preferente: true, restringida: false, nombre: '5ª hora (recomendada)' },
+  { desde: 840, hasta: 900, bloque: 'BLOCK_2', preferente: false, restringida: false, nombre: '6ª hora' }
 ];
+
+/**
+ * Edificio de un grupo: A = cursos pares (2º, 4º…) y 1º de FP Básica; B = el resto.
+ * El curso es la primera cifra del código (2ESO_A → 2, 1_INF → 1). FP Básica: códigos *_INF o *FPB.
+ */
+function edificioDe_(grupo) {
+  var g = String(grupo || '').toUpperCase();
+  var m = /^(\d)/.exec(g);
+  if (!m) return 'B';
+  var curso = Number(m[1]);
+  if (curso % 2 === 0) return 'A';
+  if (curso === 1 && /(_INF$|FPB)/.test(g)) return 'A';
+  return 'B';
+}
 var FIN_BLOQUE = { BLOCK_1: 690, BLOCK_2: 900 };
 
 var MENSAJES = {
@@ -96,7 +115,9 @@ var MENSAJES = {
   'ERROR_PETICION': 'Petición no válida.',
   'ERROR_FUERA_HORARIO': 'Fuera de la jornada lectiva (lunes a viernes, de 08:30 a 15:00).',
   'ERROR_RECREO_ACTIVE': 'Durante el recreo (11:30 a 12:00) no se conceden salidas.',
-  'ERROR_JUSTIFICACION': 'Fuera de la hora preferente hay que escribir un motivo (mínimo ' + MIN_JUSTIFICACION + ' caracteres).',
+  'ERROR_JUSTIFICACION': 'Fuera de las horas recomendadas (3ª y 5ª) hay que escribir un motivo (mínimo ' + MIN_JUSTIFICACION + ' caracteres).',
+  'ERROR_HORA_NO_PERMITIDA': 'A 1ª y 4ª hora no se sale al baño. Solo el profesor puede autorizar una excepción, indicando el motivo.',
+  'ERROR_EDIFICIO_LLENO': 'Ya hay ' + CUPO_EDIFICIO + ' alumnos de este edificio fuera del aula. Espere a que uno regrese.',
   'ERROR_JUSTIFICACION_EXCEPCIONAL': 'Para una segunda salida en el mismo bloque hay que justificarla (mínimo ' + MIN_JUSTIFICACION_EXCEPCIONAL + ' caracteres).',
   'ERROR_GLOBAL_LIMIT_REACHED': 'Cupo máximo alcanzado (' + CUPO_GLOBAL + '/' + CUPO_GLOBAL + '). Espere a que un alumno regrese.',
   'ERROR_CLASSROOM_LIMIT_REACHED': 'Ya hay un alumno de este grupo fuera del aula. Espere a que regrese.',
@@ -434,10 +455,11 @@ function estado_(usuario, datos, ahora) {
     usuario: { email: usuario.email, nombre: usuario.nombre, aula: usuario.aula, directivo: usuario.directivo },
     franja: franja,
     reloj_simulado: relojSimulado_() !== null,
-    cupo: { global: CUPO_GLOBAL, aula: CUPO_AULA, minutos: MINUTOS_MAXIMOS,
+    cupo: { global: CUPO_GLOBAL, edificio: CUPO_EDIFICIO, aula: CUPO_AULA, minutos: MINUTOS_MAXIMOS,
       min_justificacion: MIN_JUSTIFICACION, min_excepcional: MIN_JUSTIFICACION_EXCEPCIONAL },
     grupos: grupos,
     grupo: grupo,
+    edificio: grupo ? edificioDe_(grupo) : '',
     grupo_horario: sugerido,
     alumnos: lista,
     activas: activas
@@ -451,6 +473,8 @@ function autorizar_(usuario, datos, ahora) {
 
   var justificacion = String(datos.justificacion || '').trim();
   var excepcional = String(datos.justificacion_excepcional || '').trim();
+  // 1ª y 4ª hora: solo con la excepción marcada expresamente por el profesor y con motivo
+  if (franja.restringida && datos.excepcion_hora !== true) return fallo_('ERROR_HORA_NO_PERMITIDA');
   if (!franja.preferente && justificacion.length < MIN_JUSTIFICACION) return fallo_('ERROR_JUSTIFICACION');
 
   var alumno = alumnado_()[String(datos.alumno || '')];
@@ -463,7 +487,12 @@ function autorizar_(usuario, datos, ahora) {
 
   var activas = filas.filter(function (f) { return f[H.estado] === 'ACTIVE'; });
   if (activas.some(function (f) { return f[H.alumno] === alumno.id; })) return fallo_('ERROR_ALUMNO_YA_FUERA');
-  if (activas.length >= CUPO_GLOBAL) return fallo_('ERROR_GLOBAL_LIMIT_REACHED', { activas: activas.length });
+  var edificio = edificioDe_(alumno.aula);
+  var fueraEdificio = activas.filter(function (f) { return edificioDe_(f[H.aula]) === edificio; }).length;
+  if (fueraEdificio >= CUPO_EDIFICIO) {
+    return fallo_('ERROR_EDIFICIO_LLENO', null, 'Ya hay ' + fueraEdificio + ' alumnos del edificio ' + edificio +
+      ' fuera del aula (máximo ' + CUPO_EDIFICIO + '). Espere a que uno regrese.');
+  }
   if (activas.filter(function (f) { return f[H.aula] === alumno.aula; }).length >= CUPO_AULA) {
     return fallo_('ERROR_CLASSROOM_LIMIT_REACHED');
   }
@@ -491,7 +520,8 @@ function autorizar_(usuario, datos, ahora) {
   fila[H.inicio] = ahora;
   fila[H.bloque] = franja.bloque;
   fila[H.preferente] = franja.preferente;
-  fila[H.justificacion] = justificacion || 'Salida regular';
+  fila[H.justificacion] = franja.restringida ? 'Excepción autorizada por el profesor (' + franja.nombre + '): ' + justificacion
+    : justificacion || 'Salida regular';
   fila[H.excepcional] = esExcepcional;
   fila[H.justificacion_excepcional] = esExcepcional ? excepcional : 'N/A';
   fila[H.estado] = 'ACTIVE';
@@ -546,11 +576,12 @@ function franjaDe_(fecha) {
     for (var i = 0; i < FRANJAS.length; i++) {
       var f = FRANJAS[i];
       if (min >= f.desde && min < f.hasta) {
-        return { bloque: f.bloque, preferente: f.preferente, nombre: f.nombre, desde: textoMinutos_(f.desde), hasta: textoMinutos_(f.hasta) };
+        return { bloque: f.bloque, preferente: f.preferente, restringida: f.restringida, nombre: f.nombre,
+          desde: textoMinutos_(f.desde), hasta: textoMinutos_(f.hasta) };
       }
     }
   }
-  return { bloque: 'FUERA', preferente: false, nombre: 'Fuera de la jornada lectiva', desde: '', hasta: '' };
+  return { bloque: 'FUERA', preferente: false, restringida: false, nombre: 'Fuera de la jornada lectiva', desde: '', hasta: '' };
 }
 
 /**
@@ -979,7 +1010,7 @@ function salidaParaVista_(f, alumnos, usuario, ahora) {
   var inicio = comoFecha_(f[H.inicio]);
   var fin = f[H.fin] ? comoFecha_(f[H.fin]) : null;
   return {
-    exit_id: f[H.id], alumno: f[H.alumno], nombre: a.nombre, apellidos: a.apellidos, grupo: f[H.aula],
+    exit_id: f[H.id], alumno: f[H.alumno], nombre: a.nombre, apellidos: a.apellidos, grupo: f[H.aula], edificio: edificioDe_(f[H.aula]),
     docente: f[H.docente], docente_nombre: nombreDocente_(f[H.docente]), inicio: inicio.getTime(), fin: fin ? fin.getTime() : null,
     hora: horaDe_(inicio), hora_fin: fin ? horaDe_(fin) : '',
     bloque: f[H.bloque], preferente: f[H.preferente] === true, justificacion: String(f[H.justificacion] || ''),

@@ -123,6 +123,11 @@ más adelante `proyectoIntranet/PRODUCCION/`). Siempre en Mi unidad, mismo propi
 - [x] Guardias 1.3.0 (20/11/2026): modificar una ausencia ya comunicada (añadir o quitar horas) y aviso al entrar de las
       guardias asignadas hoy (prueba `pruebas/guardias_modificar.test.mts`).
 - [ ] Pegar Intranet.gs, Salidas.gs y Guardias.gs nuevos en API_Intranet_PRUEBAS y probar el cambio de curso (Miguel Ángel).
+- [x] Normas del centro (27/11/2026, Salidas 1.4.0 y Guardias 1.4.0): salidas con dos edificios (A = cursos pares y
+      1º FP Básica, B = el resto; máximo 2 fuera por edificio), 1ª y 4ª hora sin salidas salvo excepción del profesor,
+      3ª y 5ª recomendadas, una salida por tramo; guardias que rotan quién cubre los grupos conflictivos (FP, FP Básica,
+      3º ESO A, 3º ESO C, 4º ESO A) sin descompensar el total (`pruebas/guardias_conflictivos.test.mts`).
+- [ ] Pegar Salidas.gs 1.4.0 y Guardias.gs 1.4.0 en API_Intranet_PRUEBAS y publicar nueva versión (Miguel Ángel).
 - [x] Pruebas antes de producción (20/11/2026, `pruebas/preproduccion/`, `npm run test:preproduccion`): seguridad (44),
       acceso (34), concurrencia (40 docentes a la vez), volumen (un curso de 750 alumnos y 5.000 partes: 3,8 MB),
       resistencia (archivo estropeado, pestañas borradas, peticiones raras) y accesibilidad con axe-core en móvil y

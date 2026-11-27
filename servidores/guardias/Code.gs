@@ -21,6 +21,10 @@
  *
  * Reparto: cada hora de ausencia se asigna al docente de guardia de esa hora (según su horario) con menos
  * guardias en el curso (desde el 1 de septiembre); si no hay nadie libre, queda "sin cubrir".
+ * Grupos conflictivos (desde la versión 1.4.0: todo FP y FP Básica, 3º ESO A, 3º ESO C y 4º ESO A): se rota
+ * quién va, eligiendo al que menos guardias en conflictivos lleva (sin pasarse de 2 guardias por encima del que
+ * menos lleva en total); en los demás grupos va el que menos guardias lleva y, si empatan, el que más
+ * conflictivos ha cubierto. Ver elegirDocente_.
  * El motivo de la ausencia solo lo ven el propio docente y quien tiene permiso JEFATURA.
  *
  * Funciones para ejecutar desde el editor: configurarHoja, probarServidorCentral, limpiarCache.
@@ -33,7 +37,7 @@
 
 // ───────────────────────── Configuración ─────────────────────────
 
-var VERSION = '1.3.0';
+var VERSION = '1.4.0';
 var ZONA = 'Europe/Madrid';
 var DOMINIO = '@g.educaand.es';
 var DURACION_SESION_SEG = 21600;    // 6 horas (máximo de CacheService), se renueva con el uso
@@ -41,6 +45,10 @@ var CACHE_CENTRAL_SEG = 600;        // datos del servidor central: se vuelven a 
 var ESPERA_CERROJO_MS = 15000;
 var MAX_ARCHIVO_BYTES = 8 * 1024 * 1024;
 var CARPETA_TAREAS = 'Tareas_Guardias';
+
+// Grupos conflictivos (normas del centro, 27/11/2026): todo FP y FP Básica, 3º ESO A, 3º ESO C y 4º ESO A.
+var GRUPOS_CONFLICTIVOS = ['3ESO_A', '3ESO_C', '4ESO_A'];
+var TOLERANCIA_TOTAL = 2; // para un conflictivo no se elige a quien lleve más de 2 guardias por encima del que menos lleva
 
 var HOJA_AUSENCIAS = 'Ausencias';
 var HOJA_GUARDIAS = 'Guardias';
@@ -365,7 +373,7 @@ function registrarAusencia_(u, req, ahora) {
   var todasAusencias = ausencias.concat([[idAus, fecha, email, '', '', '', 'ACTIVA']]);
   var todas = guardias.concat([]);
   nuevas.forEach(function (n) {
-    n[G.asignada] = elegirDocente_(fecha, minutos_(n[G.desde]), minutos_(n[G.hasta]), todas, todasAusencias, ahora);
+    n[G.asignada] = elegirDocente_(fecha, minutos_(n[G.desde]), minutos_(n[G.hasta]), todas, todasAusencias, ahora, n[G.grupo]);
     todas.push(n);
   });
   anadirFilas_(HOJA_GUARDIAS, nuevas);
@@ -375,7 +383,7 @@ function registrarAusencia_(u, req, ahora) {
   guardias.forEach(function (g, k) {
     if (g[G.fecha] !== fecha || g[G.asignada] !== email || g[G.estado] !== 'PENDIENTE') return;
     g[G.asignada] = '';
-    g[G.asignada] = elegirDocente_(fecha, minutos_(g[G.desde]), minutos_(g[G.hasta]), todas, todasAusencias, ahora);
+    g[G.asignada] = elegirDocente_(fecha, minutos_(g[G.desde]), minutos_(g[G.hasta]), todas, todasAusencias, ahora, g[G.grupo]);
     hojaG.getRange(k + 2, G.asignada + 1).setValues([[g[G.asignada]]]);
     reasignadas++;
   });
@@ -552,7 +560,7 @@ function recuento_(u, ahora) {
   var prof = profesorado_();
   var inicio = inicioCurso_(ahora);
   var cuenta = {};
-  Object.keys(prof).forEach(function (e) { cuenta[e] = { email: e, nombre: prof[e].nombre, hechas: 0, pendientes: 0, horasGuardia: 0 }; });
+  Object.keys(prof).forEach(function (e) { cuenta[e] = { email: e, nombre: prof[e].nombre, hechas: 0, pendientes: 0, conflictivas: 0, horasGuardia: 0 }; });
   var horario = central_().horario;
   Object.keys(horario).forEach(function (e) {
     if (cuenta[e]) cuenta[e].horasGuardia = horario[e].filter(function (t) { return t[3] === 'GUARDIA'; }).length;
@@ -562,6 +570,7 @@ function recuento_(u, ahora) {
     if (!c || g[G.fecha] < inicio) return;
     if (g[G.estado] === 'HECHA') c.hechas++;
     else if (g[G.estado] === 'PENDIENTE') c.pendientes++;
+    if (g[G.estado] !== 'ANULADA' && esConflictivo_(g[G.grupo])) c.conflictivas++;
   });
   var lista = Object.keys(cuenta).map(function (e) { return cuenta[e]; }).filter(function (c) { return c.horasGuardia || c.hechas || c.pendientes; });
   lista.sort(function (a, b) { return b.hechas - a.hechas || a.nombre.localeCompare(b.nombre, 'es'); });
@@ -585,34 +594,60 @@ function deGuardia_(email, dia, desde, hasta) {
   });
 }
 
+/** Grupo conflictivo: todo FP y FP Básica (códigos 1_FRIO, 2_INF, 1FPB, CFGM…) y los de GRUPOS_CONFLICTIVOS. */
+function esConflictivo_(grupo) {
+  var g = String(grupo || '').toUpperCase().replace(/[^0-9A-Z]/g, ''); // "3º ESO-A", "3ESO_A" → "3ESOA"
+  if (!g) return false;
+  if (/ESO|BACH|BTO/.test(g)) {
+    return GRUPOS_CONFLICTIVOS.some(function (c) { return c.replace(/[^0-9A-Z]/g, '') === g; });
+  }
+  return /^\d(FPB|FPGB|CFGM|CFGS|INF|FRIO|CALOR)|FPB|CFGM|CFGS/.test(g);
+}
+
 /**
  * Docente de guardia para esa hora: está de guardia según su horario, no está ausente ni tiene ya otra
- * guardia a esa hora (quien tiene una ausencia ese día no cuenta); entre ellos, el que menos guardias lleva en el curso (hechas + pendientes).
- * Empate: orden alfabético del correo (así el resultado no depende del azar).
+ * guardia a esa hora (quien tiene una ausencia ese día no cuenta). Entre ellos (guardias del curso, hechas + pendientes):
+ *   - Grupo conflictivo: el que menos guardias en conflictivos lleva, entre los que no llevan más de TOLERANCIA_TOTAL
+ *     guardias por encima del que menos lleva en total; si empatan, el que menos lleva en total.
+ *   - Otro grupo: el que menos guardias lleva en total; si empatan, el que más conflictivos ha cubierto.
+ * Así todos quedan compensados en número y no van siempre los mismos a los conflictivos, salvo que no haya otro libre.
+ * Último desempate: orden alfabético del correo (así el resultado no depende del azar).
  */
-function elegirDocente_(fecha, desde, hasta, guardias, ausencias, ahora) {
+function elegirDocente_(fecha, desde, hasta, guardias, ausencias, ahora, grupo) {
   var dia = diaSemana_(fecha);
   var prof = profesorado_();
   var horario = central_().horario;
   var inicio = inicioCurso_(ahora);
   var activas = {};
   ausencias.forEach(function (a) { if (a[A.estado] === 'ACTIVA') activas[a[A.id]] = a[A.email]; });
-  var ocupados = {}, cuenta = {};
+  var ocupados = {}, cuenta = {}, conflictivas = {};
   guardias.forEach(function (g) {
     if (g[G.estado] === 'ANULADA') return;
     if (g[G.fecha] === fecha && solapa_(desde, hasta, minutos_(g[G.desde]), minutos_(g[G.hasta]))) {
       if (g[G.asignada]) ocupados[g[G.asignada]] = true;
       if (activas[g[G.ausencia]]) ocupados[activas[g[G.ausencia]]] = true;
     }
-    if (g[G.asignada] && g[G.fecha] >= inicio) cuenta[g[G.asignada]] = (cuenta[g[G.asignada]] || 0) + 1;
+    if (g[G.asignada] && g[G.fecha] >= inicio) {
+      cuenta[g[G.asignada]] = (cuenta[g[G.asignada]] || 0) + 1;
+      if (esConflictivo_(g[G.grupo])) conflictivas[g[G.asignada]] = (conflictivas[g[G.asignada]] || 0) + 1;
+    }
   });
   // Quien tiene una ausencia ese día no hace guardias ese día
   ausencias.forEach(function (a) { if (a[A.estado] === 'ACTIVA' && a[A.fecha] === fecha) ocupados[a[A.email]] = true; });
   var candidatos = Object.keys(horario).filter(function (e) {
     return prof[e] && !ocupados[e] && horario[e].some(function (t) { return t[0] === dia && t[3] === 'GUARDIA' && solapa_(desde, hasta, t[1], t[2]); });
   });
-  candidatos.sort(function (a, b) { return (cuenta[a] || 0) - (cuenta[b] || 0) || a.localeCompare(b); });
-  return candidatos[0] || '';
+  if (!candidatos.length) return '';
+  var total = function (e) { return cuenta[e] || 0; };
+  var conf = function (e) { return conflictivas[e] || 0; };
+  if (esConflictivo_(grupo)) {
+    var minimo = Math.min.apply(null, candidatos.map(total));
+    candidatos = candidatos.filter(function (e) { return total(e) <= minimo + TOLERANCIA_TOTAL; });
+    candidatos.sort(function (a, b) { return conf(a) - conf(b) || total(a) - total(b) || a.localeCompare(b); });
+  } else {
+    candidatos.sort(function (a, b) { return total(a) - total(b) || conf(b) - conf(a) || a.localeCompare(b); });
+  }
+  return candidatos[0];
 }
 
 

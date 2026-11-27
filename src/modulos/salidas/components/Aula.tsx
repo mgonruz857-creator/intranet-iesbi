@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarClock, Search, Timer, Undo2, UserCheck } from 'lucide-react';
 import { llamarApi } from '../services/api';
-import { etiquetaGrupo, type AlumnoGrupo, type Estado, type Salida, type Usuario } from '../tipos';
+import { edificioDe, etiquetaGrupo, type AlumnoGrupo, type Estado, type Salida, type Usuario } from '../tipos';
 import DialogoSalida from './DialogoSalida';
 
 interface Props {
@@ -55,6 +55,9 @@ export default function Aula({ usuario, avisar }: Props) {
   const ahora = Date.now() + desfase.current;
   const { franja, cupo, activas } = estado;
   const lleno = activas.length >= cupo.global;
+  const porEdificio = cupo.edificio
+    ? (['A', 'B'] as const).map((ed) => ({ ed, n: activas.filter((s) => edificioDe(s.grupo) === ed).length }))
+    : [];
   const q = normalizar(buscar);
   const alumnos = estado.alumnos.filter((a) => !q || normalizar(a.apellidos + ' ' + a.nombre).includes(q));
 
@@ -102,10 +105,33 @@ export default function Aula({ usuario, avisar }: Props) {
               {franja.bloque === 'RECREO' ? 'De 11:30 a 12:00' :
                 franja.bloque === 'FUERA' ? 'Lunes a viernes, de 08:30 a 15:00' :
                   (franja.bloque === 'BLOCK_1' ? 'Bloque 1' : 'Bloque 2') + ' · de ' + franja.desde + ' a ' + franja.hasta +
-                  ' · máximo 1 salida por alumno en el bloque'}
+                  ' · máximo 1 salida por alumno en el tramo'}
             </p>
+            {franja.bloque !== 'FUERA' && (
+              <p className="text-xs text-slate-500 mt-0.5">Horas recomendadas: 3ª y 5ª. A 1ª y 4ª no se sale, salvo excepción del profesor.</p>
+            )}
           </div>
         </div>
+        {cupo.edificio ? (
+          <div className="flex gap-5">
+            {porEdificio.map(({ ed, n }) => {
+              const max = cupo.edificio!;
+              const completo = n >= max;
+              const suyo = estado.grupo && edificioDe(estado.grupo) === ed;
+              return (
+                <div key={ed} className="text-center" aria-label={'Fuera en el edificio ' + ed + ': ' + n + ' de ' + max}>
+                  <div className={'text-3xl font-extrabold tabular-nums leading-none ' + (completo ? 'text-red-600' : 'text-slate-900')}>{n}/{max}</div>
+                  <div className="flex gap-1 justify-center mt-1.5">
+                    {Array.from({ length: max }, (_, i) => (
+                      <span key={i} className={'w-3 h-3 rounded-full ' + (i < n ? (completo ? 'bg-red-500' : 'bg-sky-500') : 'bg-slate-200')} />
+                    ))}
+                  </div>
+                  <div className={'text-[11px] mt-1 ' + (suyo ? 'font-bold text-sky-800' : 'text-slate-500')}>edificio {ed}{suyo ? ' (su grupo)' : ''}</div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
         <div className="text-center" aria-label={'Fuera en todo el centro: ' + activas.length + ' de ' + cupo.global}>
           <div className={'text-3xl font-extrabold tabular-nums leading-none ' + (lleno ? 'text-red-600' : 'text-slate-900')}>
             {activas.length}/{cupo.global}
@@ -117,6 +143,7 @@ export default function Aula({ usuario, avisar }: Props) {
           </div>
           <div className="text-[11px] text-slate-500 mt-1">fuera en todo el centro</div>
         </div>
+        )}
       </section>
 
       {/* Alumnado fuera ahora */}
@@ -143,7 +170,7 @@ export default function Aula({ usuario, avisar }: Props) {
                     </span>
                   </div>
                   <div className="text-xs text-slate-500 break-words">
-                    {etiquetaGrupo(s.grupo)} · salió a las {s.hora} · {s.docente_nombre || s.docente}{s.excepcional ? ' · excepcional' : ''}
+                    {etiquetaGrupo(s.grupo)} (edif. {edificioDe(s.grupo)}) · salió a las {s.hora} · {s.docente_nombre || s.docente}{s.excepcional ? ' · excepcional' : ''}
                   </div>
                   <div className="flex gap-2">
                     <button onClick={() => regreso(s)} disabled={ocupado === s.exit_id}
@@ -230,6 +257,7 @@ function ChipFranja({ franja }: { franja: Estado['franja'] }) {
   const base = 'inline-block text-xs font-bold px-2.5 py-1 rounded-full border ';
   if (franja.bloque === 'RECREO') return <span className={base + 'bg-red-50 border-red-200 text-red-700'}>Recreo: no se conceden salidas</span>;
   if (franja.bloque === 'FUERA') return <span className={base + 'bg-slate-100 border-slate-200 text-slate-600'}>Fuera de la jornada lectiva</span>;
+  if (franja.restringida) return <span className={base + 'bg-red-50 border-red-200 text-red-700'}>{franja.nombre}: no se sale, salvo excepción</span>;
   if (franja.preferente) return <span className={base + 'bg-emerald-50 border-emerald-200 text-emerald-700'}>{franja.nombre}: autorización directa</span>;
   return <span className={base + 'bg-amber-50 border-amber-200 text-amber-700'}>{franja.nombre}: hay que indicar el motivo</span>;
 }

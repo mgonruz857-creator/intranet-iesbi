@@ -91,7 +91,7 @@ export default function Historico({ avisar }: Props) {
             ) : lista.map((s) => {
               const seg = s.fin ? Math.round((s.fin - s.inicio) / 1000) : null;
               const [txt, estilo] = ESTADOS[s.estado] || [s.estado, ''];
-              let motivo = s.preferente && s.justificacion === 'Salida regular' ? 'Hora preferente' : s.justificacion;
+              let motivo = s.preferente && s.justificacion === 'Salida regular' ? 'Hora recomendada' : s.justificacion;
               if (s.excepcional) motivo += ' · Excepcional: ' + s.justificacion_excepcional;
               return (
                 <tr key={s.exit_id} className="border-b border-slate-100 align-top">
