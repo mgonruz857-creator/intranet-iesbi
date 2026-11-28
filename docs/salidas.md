@@ -46,8 +46,9 @@ en las propiedades del script, sesión de 6 h) y mismos códigos de grupo e iden
   salida como excepción" y escribe el motivo (el servidor exige `excepcion_hora: true` y motivo; si no,
   `ERROR_HORA_NO_PERMITIDA`). En el histórico queda "Excepción autorizada por el profesor (1ª hora): motivo".
 - **3ª y 5ª hora: recomendadas** (autorización directa). 2ª y 6ª: con motivo de ≥ 5 caracteres.
-- **Dos edificios** (`edificioDe_` en el servidor, `edificioDe` en la app): A = cursos pares (2º, 4º ESO, 2º Bach,
-  2º de ciclos y de FP Básica) y 1º de FP Básica; B = el resto. **Máximo 2 fuera a la vez en cada edificio**
+- **Dos edificios** (`edificioDe_` en el servidor, `edificioDe` en la app): A = cursos pares de ESO y Bachillerato
+  (2º, 4º ESO, 2º Bach) y 1º de FP Básica; B = el resto (1º y 3º ESO, 1º Bach, ciclos y 2º de FP Básica; confirmado
+  por Miguel Ángel el 28/11/2026). **Máximo 2 fuera a la vez en cada edificio**
   (`CUPO_EDIFICIO`, error `ERROR_EDIFICIO_LLENO`) y ≤ 1 por grupo, con `LockService`. La pantalla muestra el
   contador de cada edificio.
 - 1 salida por alumno y tramo (antes y después del recreo); la 2ª es excepcional con justificación de ≥ 10

@@ -143,11 +143,11 @@ test('cupos: máximo 2 fuera por edificio (A = pares y 1º FPB; B = el resto) y 
   assert.equal(e.pedir({ accion: 'regreso', token: t, exit_id: id }, hora('10:41')).codigo, 'ERROR_SALIDA_NO_ENCONTRADA');
 });
 
-test('edificios: cursos pares y 1º FP Básica en el A; el resto en el B', () => {
+test('edificios: cursos pares de ESO y Bachillerato y 1º FP Básica en el A; ciclos y 2º FP Básica en el B', () => {
   const e = entorno();
   const ed = e.ctx.edificioDe_;
-  for (const g of ['2ESO_A', '4ESO_D', '2BACH_C', '1_INF', '1FPB', '2_INF', '2_FRIO']) assert.equal(ed(g), 'A', g);
-  for (const g of ['1ESO_A', '3ESO_C', '1BACH_B', '1_FRIO', '1_CALOR', '']) assert.equal(ed(g), 'B', g);
+  for (const g of ['2ESO_A', '4ESO_D', '2BACH_C', '1_INF', '1FPB']) assert.equal(ed(g), 'A', g);
+  for (const g of ['1ESO_A', '3ESO_C', '1BACH_B', '1_FRIO', '1_CALOR', '2_FRIO', '2_CALOR', '2_INF', '2FPB', '']) assert.equal(ed(g), 'B', g);
 });
 
 test('peticiones simultáneas: el cerrojo ocupado no deja pasar ninguna escritura', () => {

@@ -35,7 +35,7 @@
 
 // ───────────────────────── Configuración ─────────────────────────
 
-var VERSION = '1.4.0';
+var VERSION = '1.4.1';
 var ZONA = 'Europe/Madrid';
 var DOMINIO = '@g.educaand.es';
 var CUPO_EDIFICIO = 2;              // máximo de alumnos fuera a la vez en cada edificio (A y B)
@@ -91,7 +91,7 @@ var FRANJAS = [
 ];
 
 /**
- * Edificio de un grupo: A = cursos pares (2º, 4º…) y 1º de FP Básica; B = el resto.
+ * Edificio de un grupo: A = cursos pares de ESO y Bachillerato (2º, 4º…) y 1º de FP Básica; B = el resto (ciclos y 2º de FP Básica).
  * El curso es la primera cifra del código (2ESO_A → 2, 1_INF → 1). FP Básica: códigos *_INF o *FPB.
  */
 function edificioDe_(grupo) {
@@ -99,9 +99,9 @@ function edificioDe_(grupo) {
   var m = /^(\d)/.exec(g);
   if (!m) return 'B';
   var curso = Number(m[1]);
-  if (curso % 2 === 0) return 'A';
-  if (curso === 1 && /(_INF$|FPB)/.test(g)) return 'A';
-  return 'B';
+  if (/ESO|BACH/.test(g)) return curso % 2 === 0 ? 'A' : 'B';
+  // Ciclos y FP Básica: solo 1º de FP Básica está en el A (2º de FP Básica y los ciclos, en el B)
+  return curso === 1 && /(_INF$|FPB)/.test(g) ? 'A' : 'B';
 }
 var FIN_BLOQUE = { BLOCK_1: 690, BLOCK_2: 900 };
 

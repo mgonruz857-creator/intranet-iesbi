@@ -77,7 +77,7 @@ export function edificioDe(grupo: string): 'A' | 'B' {
   const m = /^(\d)/.exec(g);
   if (!m) return 'B';
   const curso = Number(m[1]);
-  if (curso % 2 === 0) return 'A';
-  if (curso === 1 && /(_INF$|FPB)/.test(g)) return 'A';
-  return 'B';
+  if (/ESO|BACH/.test(g)) return curso % 2 === 0 ? 'A' : 'B';
+  // Ciclos y FP Básica: solo 1º de FP Básica está en el A (2º de FP Básica y los ciclos, en el B)
+  return curso === 1 && /(_INF$|FPB)/.test(g) ? 'A' : 'B';
 }
