@@ -15,11 +15,12 @@ interface Props {
   sustituciones: Sustitucion[];
   /** Texto de grupo de Séneca → grupo de la intranet ('' = no es un grupo), guardado en el servidor. */
   equivalencias: Record<string, string>;
+  correspondencias: Record<string, string>;
   avisar: (texto: string, error?: boolean) => void;
   alGuardar: () => void;
 }
 
-export default function Horarios({ profesores, horarios, pendientes, sustituciones, equivalencias, avisar, alGuardar }: Props) {
+export default function Horarios({ profesores, horarios, pendientes, sustituciones, equivalencias, correspondencias, avisar, alGuardar }: Props) {
   const activos = profesores.filter((p) => p.estado !== 'INACTIVO');
   // En Séneca el nombre viene como "APELLIDOS,NOMBRE"
   const docentes = activos.map((p) => ({ email: p.email.toLowerCase(), nombre: nombreCompleto(p) }));
@@ -27,7 +28,7 @@ export default function Horarios({ profesores, horarios, pendientes, sustitucion
   const sinHorario = docentes.filter((d) => !conHorario.has(d.email));
   return (
     <div className="space-y-4">
-      <ImportarHorario docentes={docentes} grupos={GRUPOS} equivalencias={equivalencias} avisar={avisar} alGuardar={alGuardar} />
+      <ImportarHorario docentes={docentes} grupos={GRUPOS} equivalencias={equivalencias} correspondencias={correspondencias} avisar={avisar} alGuardar={alGuardar} />
       {pendientes.length > 0 && (
         <section className="bg-white border border-amber-200 rounded-2xl p-4 text-sm space-y-3">
           <div>
@@ -170,6 +171,8 @@ interface ImportarProps {
   grupos: string[];
   /** Equivalencias guardadas en el servidor (texto de Séneca → grupo; '' = no es un grupo). */
   equivalencias?: Record<string, string>;
+  /** Nombre del docente en Séneca → correo, guardado en el servidor (los que se asignaron a mano). */
+  correspondencias?: Record<string, string>;
   avisar: (texto: string, error?: boolean) => void;
   alGuardar: () => void;
 }
@@ -178,7 +181,7 @@ function leerEquivalencias(): Record<string, string> {
   try { return JSON.parse(localStorage.getItem(CLAVE_EQUIVALENCIAS) || '{}'); } catch { return {}; }
 }
 
-export function ImportarHorario({ docentes, grupos, equivalencias = {}, avisar, alGuardar }: ImportarProps) {
+export function ImportarHorario({ docentes, grupos, equivalencias = {}, correspondencias = {}, avisar, alGuardar }: ImportarProps) {
   const [paginas, setPaginas] = useState<PaginaHorario[]>([]);
   const [leyendo, setLeyendo] = useState(false);
   const [guardando, setGuardando] = useState(false);
@@ -201,7 +204,11 @@ export function ImportarHorario({ docentes, grupos, equivalencias = {}, avisar, 
       const porDocente = new Map(leidas.map((p) => [p.profesor, p]));
       setPaginas([...porDocente.values()]);
       const auto: Record<string, string> = {};
-      porDocente.forEach((_, nombre) => { auto[nombre] = buscarDocente(nombre, docentes); });
+      const deAlta = new Set(docentes.map((d) => d.email));
+      porDocente.forEach((_, nombre) => {
+        const recordado = correspondencias[nombre.replace(/\s+/g, ' ').trim()];
+        auto[nombre] = buscarDocente(nombre, docentes) || (recordado && deAlta.has(recordado) ? recordado : '');
+      });
       setDocenteDe(auto);
       if (!leidas.length) avisar('No se ha encontrado ningún horario de profesorado en el PDF.', true);
     } catch (e: any) {
@@ -255,7 +262,10 @@ export function ImportarHorario({ docentes, grupos, equivalencias = {}, avisar, 
     const resueltos = paginas.filter((p) => docenteDe[p.profesor]).map((p) => p.profesor);
     const usadas: Record<string, string> = {};
     textosGrupo.forEach((t) => { usadas[t] = codigo(t); });
-    const r = await llamarApi('guardarHorarios', { filas, docentes: correos, pendientes, resueltos, equivalencias: usadas }, 60000);
+    const asignados: Record<string, string> = {};
+    paginas.forEach((p) => { if (docenteDe[p.profesor]) asignados[p.profesor] = docenteDe[p.profesor]; });
+    const r = await llamarApi('guardarHorarios', { filas, docentes: correos, pendientes, resueltos, equivalencias: usadas,
+      correspondencias: asignados }, 60000);
     setGuardando(false);
     if (!r.ok) { avisar(r.error || 'No se pudo guardar el horario.', true); return; }
     avisar('Horario guardado: ' + r.guardados + ' horas de ' + r.docentes + ' docentes.' +

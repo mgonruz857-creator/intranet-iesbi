@@ -17,6 +17,7 @@ export default function App() {
   const [profesores, setProfesores] = useState<DocentePanel[] | null>(null);
   const [horarios, setHorarios] = useState<FilaHorario[]>([]);
   const [equivalencias, setEquivalencias] = useState<Record<string, string>>({});
+  const [correspondencias, setCorrespondencias] = useState<Record<string, string>>({});
   const [pendientes, setPendientes] = useState<HorarioPendiente[]>([]);
   const [sustituciones, setSustituciones] = useState<Sustitucion[]>([]);
   const [curso, setCurso] = useState('');
@@ -39,6 +40,7 @@ export default function App() {
     setProfesores(r.profesores as DocentePanel[]);
     setHorarios(r.horarios as FilaHorario[]);
     setEquivalencias((r.equivalencias || {}) as Record<string, string>);
+    setCorrespondencias((r.correspondencias || {}) as Record<string, string>);
     setPendientes((r.pendientes || []) as HorarioPendiente[]);
     setSustituciones((r.sustituciones || []) as Sustitucion[]);
     setCurso(String(r.curso || ''));
@@ -108,7 +110,7 @@ export default function App() {
         ) : pestana === 'permisos' ? (
           <Profesorado profesores={profesores} horarios={horarios} avisar={avisar} alCambiar={setProfesores} />
         ) : (
-          <Horarios profesores={profesores} horarios={horarios} pendientes={pendientes} sustituciones={sustituciones} equivalencias={equivalencias} avisar={avisar} alGuardar={cargar} />
+          <Horarios profesores={profesores} horarios={horarios} pendientes={pendientes} sustituciones={sustituciones} equivalencias={equivalencias} correspondencias={correspondencias} avisar={avisar} alGuardar={cargar} />
         )}
       </main>
       {aviso && (
