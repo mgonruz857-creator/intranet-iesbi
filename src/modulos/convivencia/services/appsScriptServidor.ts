@@ -144,6 +144,8 @@ function importarDesdeConvivencia() {
   var poner = {};
   if (origen.SECRETO_SERVIDOR) poner.SECRETO_SERVIDOR = origen.SECRETO_SERVIDOR;
   nuevas.forEach(function (k) { poner[k] = origen[k]; });
+  // Partes que cada tutor/a ya ha visto (así no le salen todos como nuevos)
+  Object.keys(origen).forEach(function (k) { if (k.indexOf('TUT_VISTOS_') === 0) poner[k] = origen[k]; });
   props.setProperties(poner, false);
   var enArchivo = Object.keys(JSON.parse(lista[0].getBlob().getDataAsString()).credenciales_profesores || {}).length;
   Logger.log('CONTRASEÑAS: pasadas ' + nuevas.length + ' guardadas en el servidor antiguo' +

@@ -9,7 +9,7 @@
  *  1) Hace una copia exacta del archivo de datos en la carpeta proyectoIntranet/PRODUCCION
  *     con el nombre 00_SIGC_BD_INTRANET.json.
  *  2) Deja en esa misma carpeta un archivo de paso (MIGRACION_DESDE_CONVIVENCIA.json) con las contraseñas
- *     cifradas del profesorado y los recuentos del original. La intranet lo lee con importarDesdeConvivencia
+ *     cifradas del profesorado, los partes que cada tutor/a ya ha visto y los recuentos del original. La intranet lo lee con importarDesdeConvivencia
  *     y lo manda a la papelera.
  * No escribe en el registro ningún dato personal ni ninguna contraseña.
  */
@@ -53,6 +53,7 @@ function intranetExportar() {
     var nClaves = 0;
     for (var p in todas) {
       if (p.indexOf('CLAVE_') === 0) { propiedades[p] = todas[p]; nClaves++; }
+      if (p.indexOf('TUT_VISTOS_') === 0) propiedades[p] = todas[p];   // partes que cada tutor/a ya ha visto
       if (p === 'SECRETO_SERVIDOR') propiedades[p] = todas[p];
     }
 

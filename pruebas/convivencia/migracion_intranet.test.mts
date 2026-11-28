@@ -26,6 +26,7 @@ ok('antigua: A fija su contraseña', viejo.post({ accion: 'login', email: A, cla
 ok('antigua: B fija su contraseña', viejo.post({ accion: 'login', email: B, clave: 'bbbb222' }).ok);
 const original = viejo.archivos['DB'];
 const propsViejas = new Map(viejo.props);
+propsViejas.set('TUT_VISTOS_' + A, '{"grupo":"1ESO_A","v":["s-1"]}');
 
 // 2) intranetExportar en el proyecto antiguo (dos carpetas: origen y PRODUCCION)
 const ORIGEN = '1S5zjeSgcfVkL-eoQLsJ9I_ltHAnRrbaS', DESTINO = '1sEI0H7cAwRViVDwtGuQfVdaqsqFPSUcv';
@@ -65,6 +66,7 @@ ok('A entra con su contraseña de siempre', nuevo.post({ accion: 'login', email:
 ok('B entra con su contraseña de siempre', nuevo.post({ accion: 'login', email: B, clave: 'bbbb222' }).ok);
 ok('A con una contraseña equivocada no entra', !nuevo.post({ accion: 'login', email: A, clave: 'otra999' }).ok);
 ok('C (contraseña de la versión 1 dentro del archivo) entra con la suya', nuevo.post({ accion: 'login', email: C, clave: 'ceee333' }).ok);
+ok('se conservan los partes que cada tutor ya ha visto', nuevo.props.get('TUT_VISTOS_' + A)?.includes('s-1') === true);
 ok('D (sin contraseña) queda como primer acceso', nuevo.post({ accion: 'estadoCuenta', email: D }).tieneClave === false);
 
 // 4) Copia distinta del original: no se pasan contraseñas
