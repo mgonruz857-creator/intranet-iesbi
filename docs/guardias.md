@@ -9,9 +9,15 @@ Módulo de la intranet para ausencias del profesorado y cobertura de guardias. D
   Jefatura (permiso JEFATURA) puede registrarla por otro docente.
 - **Motivo:** dato personal. Solo lo ven el propio docente y quien tiene permiso JEFATURA (Jefatura y Dirección).
 - **Reparto automático:** cada hora se asigna al docente de guardia de esa hora (casillas GUARDIA del horario de
-  Séneca) que no esté ausente ese día ni tenga otra guardia a esa hora, con menos guardias en el curso (hechas +
-  pendientes); empate por orden alfabético del correo. Sin nadie libre: "sin cubrir" (en rojo para Jefatura).
-  Si quien cubre registra después una ausencia ese día, sus guardias pendientes se reparten de nuevo.
+  Séneca) que no esté ausente ese día ni tenga otra guardia a esa hora. Sin nadie libre: "sin cubrir" (en rojo para
+  Jefatura). Si quien cubre registra después una ausencia ese día, sus guardias pendientes se reparten de nuevo.
+- **Grupos conflictivos (1.4.0, 27/11/2026, normas de Miguel Ángel):** todo FP y FP Básica, 3º ESO A, 3º ESO C y
+  4º ESO A (`GRUPOS_CONFLICTIVOS` y `esConflictivo_`). Cuentas del curso (hechas + pendientes):
+  - Hora de un grupo conflictivo: va quien menos guardias en conflictivos lleva, entre los que no llevan más de 2
+    guardias (`TOLERANCIA_TOTAL`) por encima del que menos lleva en total; si empatan, quien menos lleva en total.
+  - Hora de otro grupo: quien menos guardias lleva en total; si empatan, quien más conflictivos ha cubierto.
+  - Último desempate: orden alfabético del correo. Si solo hay uno libre, va él ("salvo que no quede otra").
+  - El recuento de Jefatura muestra la columna "En grupos conflictivos".
 - **Cambios:** Jefatura puede cambiar quién cubre; un docente de guardia a esa hora puede coger una sin cubrir.
 - **Registro:** quien cubre (o Jefatura) la marca como hecha y anota incidencias.
 - **Recuento:** guardias por docente desde el 1 de septiembre (empieza de cero cada curso).

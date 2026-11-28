@@ -6,6 +6,7 @@ import Historico from './components/Historico';
 import Profesorado from './components/Profesorado';
 import CambiarClave from './components/CambiarClave';
 import { Aviso, type AvisoDatos } from './components/Aviso';
+import RelojPruebas from '../../nucleo/RelojPruebas';
 import { EVENTO_SESION_CADUCADA, guardarToken, llamarApi, tokenGuardado, usarServidorUnico } from './services/api';
 import { ES_ENTORNO_PRUEBAS } from './config/entorno';
 import type { Usuario } from './tipos';
@@ -29,6 +30,7 @@ export default function App() {
   const [vista, setVista] = useState<Vista>('aula');
   const [aviso, setAviso] = useState<AvisoDatos | null>(null);
   const [cambiandoClave, setCambiandoClave] = useState(false);
+  const [reloj, setReloj] = useState(0); // cambia al simular otro día y hora (solo PRUEBAS)
   const [accesoUnico, setAccesoUnico] = useState(leerAccesoUnico);
   // Sin sesión propia, se intenta primero el acceso único de la intranet
   const [entrando, setEntrando] = useState(() => !tokenGuardado());
@@ -181,9 +183,10 @@ export default function App() {
               </div>
             </div>
           </header>
-          <main className="max-w-6xl mx-auto px-4 py-4">
-            {vista === 'aula' && <Aula usuario={usuario} avisar={avisar} />}
-            {vista === 'historico' && usuario.directivo && <Historico avisar={avisar} />}
+          <main className="max-w-6xl mx-auto px-4 py-4 space-y-4">
+            <RelojPruebas llamar={llamarApi} alCambiar={() => setReloj((n) => n + 1)} />
+            {vista === 'aula' && <Aula key={reloj} usuario={usuario} avisar={avisar} />}
+            {vista === 'historico' && usuario.directivo && <Historico key={reloj} avisar={avisar} />}
             {vista === 'profesorado' && usuario.directivo && <Profesorado avisar={avisar} />}
           </main>
           {cambiandoClave && <CambiarClave cerrar={() => setCambiandoClave(false)} avisar={avisar} />}

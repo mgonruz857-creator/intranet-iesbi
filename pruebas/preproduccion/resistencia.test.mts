@@ -44,11 +44,11 @@ ok('los partes de antes no se pierden', (() => { try { return JSON.parse(srv.dri
 console.log('== 3. Alguien borra una pestaña de la hoja de salidas');
 srv.props.set('RELOJ_PRUEBAS', JSON.stringify({ real: Date.now(), ficticio: new Date('2026-11-23T08:45:00Z').getTime() }));
 const hs = libros['hoja-salidas'].hojas, hist = hs.Historico_Salidas; delete hs.Historico_Salidas;
-const rs = sal('autorizar', tCar, { alumno: 'al-2-3', grupo: '2ESO_A', justificacion: 'x' });
+const rs = sal('autorizar', tCar, { alumno: 'al-2-3', grupo: '2ESO_A', justificacion: 'Urgente' });
 ok('salidas da un error controlado (dice qué pestaña falta)', !rs.ok && /Historico_Salidas/.test(rs.error || rs.mensaje || ''), JSON.stringify(rs).slice(0, 200));
 ok('convivencia y guardias no se ven afectados', post({ accion: 'leer', token: tCar }).ok && gua('inicio', tCar).ok);
 hs.Historico_Salidas = hist;
-ok('al reponerla, salidas vuelve sin más', sal('autorizar', tCar, { alumno: 'al-2-3', grupo: '2ESO_A', justificacion: 'x' }).ok);
+ok('al reponerla, salidas vuelve sin más', sal('autorizar', tCar, { alumno: 'al-2-3', grupo: '2ESO_A', justificacion: 'Urgente' }).ok);
 
 console.log('== 4. Un error dentro de un módulo no deja el servidor bloqueado');
 const hojaG = libros['hoja-guardias'].hojas;

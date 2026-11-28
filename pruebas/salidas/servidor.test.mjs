@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { crearEntorno, madrid } from './simulador.mjs';
 
-const GRUPOS = ['1ESO_A', '1ESO_B', '1ESO_C', '1ESO_D', '2ESO_A', '2ESO_B'];
+const GRUPOS = ['1ESO_A', '1ESO_B', '1ESO_C', '1ESO_D', '2ESO_A', '2ESO_B', '3ESO_A', '1_INF'];
 const DIA = '2026-10-23'; // viernes
 
 function entorno({ horario } = {}) {
@@ -75,80 +75,112 @@ test('acceso: sin sesión no hay datos; el directivo restablece y la sesión ant
 
 // ───────── Horario y reglas ─────────
 
-test('franjas: preferente directa, fuera de preferente exige motivo, recreo y fuera de jornada', () => {
+test('franjas: 3ª y 5ª directas; 2ª y 6ª con motivo; 1ª y 4ª solo con excepción del profesor; recreo y fuera de jornada', () => {
   const e = entorno();
   const t = e.entrar('docente.uno@g.educaand.es');
-  assert.equal(autorizar(e, t, 'alu_1ESO_A_1', '1ESO_A', '08:45').codigo, 'ERROR_JUSTIFICACION');
-  assert.equal(autorizar(e, t, 'alu_1ESO_A_1', '1ESO_A', '08:45', { justificacion: 'abc' }).codigo, 'ERROR_JUSTIFICACION');
-  assert.equal(autorizar(e, t, 'alu_1ESO_A_1', '1ESO_A', '08:45', { justificacion: 'Urgencia' }).ok, true);
-  assert.equal(autorizar(e, t, 'alu_1ESO_B_1', '1ESO_B', '09:30').ok, true, 'hora preferente A: 1 clic');
-  assert.equal(autorizar(e, t, 'alu_1ESO_C_1', '1ESO_C', '11:30').codigo, 'ERROR_RECREO_ACTIVE');
-  assert.equal(autorizar(e, t, 'alu_1ESO_C_1', '1ESO_C', '11:59').codigo, 'ERROR_RECREO_ACTIVE');
-  assert.equal(autorizar(e, t, 'alu_1ESO_C_1', '1ESO_C', '13:15').ok, true, 'hora preferente B');
-  assert.equal(autorizar(e, t, 'alu_1ESO_D_1', '1ESO_D', '15:00').codigo, 'ERROR_FUERA_HORARIO');
-  assert.equal(autorizar(e, t, 'alu_1ESO_D_1', '1ESO_D', '08:29').codigo, 'ERROR_FUERA_HORARIO');
-  assert.equal(e.pedir({ accion: 'autorizar', token: t, alumno: 'alu_1ESO_D_1', grupo: '1ESO_D' }, madrid('2026-10-24', '09:45')).codigo,
+  const volver = (h) => { const a = e.pedir({ accion: 'estado', token: t }, hora(h)).activas; a.forEach((s) => e.pedir({ accion: 'regreso', token: t, exit_id: s.exit_id }, hora(h))); };
+  // 1ª hora: no se sale salvo excepción marcada por el profesor, y con motivo
+  assert.equal(autorizar(e, t, 'alu_1ESO_A_1', '1ESO_A', '08:45').codigo, 'ERROR_HORA_NO_PERMITIDA');
+  assert.equal(autorizar(e, t, 'alu_1ESO_A_1', '1ESO_A', '08:45', { justificacion: 'Urgencia' }).codigo, 'ERROR_HORA_NO_PERMITIDA');
+  assert.equal(autorizar(e, t, 'alu_1ESO_A_1', '1ESO_A', '08:45', { excepcion_hora: true }).codigo, 'ERROR_JUSTIFICACION');
+  assert.equal(autorizar(e, t, 'alu_1ESO_A_1', '1ESO_A', '08:45', { excepcion_hora: true, justificacion: 'Urgencia' }).ok, true);
+  volver('08:50');
+  // 2ª hora: con motivo
+  assert.equal(autorizar(e, t, 'alu_1ESO_B_1', '1ESO_B', '09:45').codigo, 'ERROR_JUSTIFICACION');
+  assert.equal(autorizar(e, t, 'alu_1ESO_B_1', '1ESO_B', '09:45', { justificacion: 'abc' }).codigo, 'ERROR_JUSTIFICACION');
+  assert.equal(autorizar(e, t, 'alu_1ESO_B_1', '1ESO_B', '09:45', { justificacion: 'Necesidad' }).ok, true);
+  volver('09:50');
+  // 3ª hora: recomendada, 1 clic
+  assert.equal(autorizar(e, t, 'alu_1ESO_C_1', '1ESO_C', '10:35').ok, true, '3ª hora: 1 clic');
+  assert.equal(autorizar(e, t, 'alu_1ESO_D_1', '1ESO_D', '11:30').codigo, 'ERROR_RECREO_ACTIVE');
+  assert.equal(autorizar(e, t, 'alu_1ESO_D_1', '1ESO_D', '11:59').codigo, 'ERROR_RECREO_ACTIVE');
+  // 4ª hora: igual que 1ª
+  assert.equal(autorizar(e, t, 'alu_1ESO_D_1', '1ESO_D', '12:15', { justificacion: 'Lo pide' }).codigo, 'ERROR_HORA_NO_PERMITIDA');
+  assert.equal(autorizar(e, t, 'alu_1ESO_D_1', '1ESO_D', '13:15').ok, true, '5ª hora: 1 clic');
+  volver('13:20');
+  assert.equal(autorizar(e, t, 'alu_2ESO_A_1', '2ESO_A', '14:15').codigo, 'ERROR_JUSTIFICACION', '6ª hora con motivo');
+  assert.equal(autorizar(e, t, 'alu_2ESO_A_1', '2ESO_A', '15:00').codigo, 'ERROR_FUERA_HORARIO');
+  assert.equal(autorizar(e, t, 'alu_2ESO_A_1', '2ESO_A', '08:29').codigo, 'ERROR_FUERA_HORARIO');
+  assert.equal(e.pedir({ accion: 'autorizar', token: t, alumno: 'alu_1ESO_D_1', grupo: '1ESO_D' }, madrid('2026-10-24', '10:45')).codigo,
     'ERROR_FUERA_HORARIO', 'sábado');
   const f = e.hojas.Historico_Salidas.datos;
-  assert.equal(f[1][8], false); assert.equal(f[1][9], 'Urgencia');
-  assert.equal(f[2][8], true); assert.equal(f[2][9], 'Salida regular');
-  assert.equal(f[1][7], 'BLOCK_1'); assert.equal(f[3][7], 'BLOCK_2');
+  assert.equal(f[1][9], 'Excepción autorizada por el profesor (1ª hora): Urgencia');
+  assert.equal(f[2][8], false); assert.equal(f[2][9], 'Necesidad');
+  assert.equal(f[3][8], true); assert.equal(f[3][9], 'Salida regular');
+  assert.equal(f[1][7], 'BLOCK_1'); assert.equal(f[4][7], 'BLOCK_2');
 });
 
-test('cupos: máximo 5 en el centro y 1 por aula; alumno ya fuera; alumno de otro grupo o de baja', () => {
+test('cupos: máximo 2 fuera por edificio (A = pares y 1º FPB; B = el resto) y 1 por aula; alumno ya fuera; de otro grupo o de baja', () => {
   const e = entorno();
   const t = e.entrar('docente.uno@g.educaand.es');
-  assert.equal(autorizar(e, t, 'alu_1ESO_A_1', '1ESO_A', '09:35').ok, true);
-  assert.equal(autorizar(e, t, 'alu_1ESO_A_1', '1ESO_A', '09:35').codigo, 'ERROR_ALUMNO_YA_FUERA');
-  assert.equal(autorizar(e, t, 'alu_1ESO_A_2', '1ESO_A', '09:35').codigo, 'ERROR_CLASSROOM_LIMIT_REACHED');
-  assert.equal(autorizar(e, t, 'alu_1ESO_B_1', '1ESO_A', '09:35').codigo, 'ERROR_ALUMNO_NO_ENCONTRADO');
-  assert.equal(autorizar(e, t, 'alu_baja', '1ESO_A', '09:35').codigo, 'ERROR_ALUMNO_NO_ENCONTRADO');
-  for (const g of ['1ESO_B', '1ESO_C', '1ESO_D', '2ESO_A']) assert.equal(autorizar(e, t, 'alu_' + g + '_1', g, '09:36').ok, true);
-  const r = autorizar(e, t, 'alu_2ESO_B_1', '2ESO_B', '09:37');
-  assert.equal(r.codigo, 'ERROR_GLOBAL_LIMIT_REACHED');
-  assert.match(r.mensaje, /5\/5/);
-  const est = e.pedir({ accion: 'estado', token: t }, hora('09:38'));
-  assert.equal(est.activas.length, 5);
-  // Vuelve uno y ya hay hueco
-  const id = est.activas.find((s) => s.grupo === '1ESO_C').exit_id;
-  const v = e.pedir({ accion: 'regreso', token: t, exit_id: id }, hora('09:39'));
+  assert.equal(autorizar(e, t, 'alu_1ESO_A_1', '1ESO_A', '10:35').ok, true);
+  assert.equal(autorizar(e, t, 'alu_1ESO_A_1', '1ESO_A', '10:35').codigo, 'ERROR_ALUMNO_YA_FUERA');
+  assert.equal(autorizar(e, t, 'alu_1ESO_A_2', '1ESO_A', '10:35').codigo, 'ERROR_CLASSROOM_LIMIT_REACHED');
+  assert.equal(autorizar(e, t, 'alu_1ESO_B_1', '1ESO_A', '10:35').codigo, 'ERROR_ALUMNO_NO_ENCONTRADO');
+  assert.equal(autorizar(e, t, 'alu_baja', '1ESO_A', '10:35').codigo, 'ERROR_ALUMNO_NO_ENCONTRADO');
+  assert.equal(autorizar(e, t, 'alu_1ESO_B_1', '1ESO_B', '10:36').ok, true);
+  let r = autorizar(e, t, 'alu_3ESO_A_1', '3ESO_A', '10:36');
+  assert.equal(r.codigo, 'ERROR_EDIFICIO_LLENO', '3º ESO es del edificio B');
+  assert.match(r.mensaje, /edificio B/);
+  // El edificio A tiene su propio cupo: 2º ESO y 1º FP Básica
+  assert.equal(autorizar(e, t, 'alu_2ESO_A_1', '2ESO_A', '10:36').ok, true);
+  assert.equal(autorizar(e, t, 'alu_1_INF_1', '1_INF', '10:36').ok, true);
+  r = autorizar(e, t, 'alu_2ESO_B_1', '2ESO_B', '10:37');
+  assert.equal(r.codigo, 'ERROR_EDIFICIO_LLENO');
+  assert.match(r.mensaje, /edificio A/);
+  const est = e.pedir({ accion: 'estado', token: t, grupo: '2ESO_B' }, hora('10:38'));
+  assert.equal(est.activas.length, 4);
+  assert.equal(est.cupo.edificio, 2);
+  assert.equal(est.edificio, 'A');
+  assert.deepEqual(est.activas.map((s) => s.edificio).sort(), ['A', 'A', 'B', 'B']);
+  // Vuelve uno del edificio B y ya hay hueco en el B (no en el A)
+  const id = est.activas.find((s) => s.grupo === '1ESO_B').exit_id;
+  const v = e.pedir({ accion: 'regreso', token: t, exit_id: id }, hora('10:39'));
   assert.equal(v.ok, true);
   assert.equal(v.duration_seconds, 180);
-  assert.equal(autorizar(e, t, 'alu_2ESO_B_1', '2ESO_B', '09:40').ok, true);
-  assert.equal(e.pedir({ accion: 'regreso', token: t, exit_id: id }, hora('09:41')).codigo, 'ERROR_SALIDA_NO_ENCONTRADA');
+  assert.equal(autorizar(e, t, 'alu_2ESO_B_1', '2ESO_B', '10:40').codigo, 'ERROR_EDIFICIO_LLENO');
+  assert.equal(autorizar(e, t, 'alu_3ESO_A_1', '3ESO_A', '10:40').ok, true);
+  assert.equal(e.pedir({ accion: 'regreso', token: t, exit_id: id }, hora('10:41')).codigo, 'ERROR_SALIDA_NO_ENCONTRADA');
+});
+
+test('edificios: cursos pares de ESO y Bachillerato y 1º FP Básica en el A; ciclos y 2º FP Básica en el B', () => {
+  const e = entorno();
+  const ed = e.ctx.edificioDe_;
+  for (const g of ['2ESO_A', '4ESO_D', '2BACH_C', '1_INF', '1FPB']) assert.equal(ed(g), 'A', g);
+  for (const g of ['1ESO_A', '3ESO_C', '1BACH_B', '1_FRIO', '1_CALOR', '2_FRIO', '2_CALOR', '2_INF', '2FPB', '']) assert.equal(ed(g), 'B', g);
 });
 
 test('peticiones simultáneas: el cerrojo ocupado no deja pasar ninguna escritura', () => {
   const e = entorno();
   const t = e.entrar('docente.uno@g.educaand.es');
   e.ocuparCerrojo(true);
-  assert.equal(autorizar(e, t, 'alu_1ESO_A_1', '1ESO_A', '09:35').codigo, 'ERROR_OCUPADO');
+  assert.equal(autorizar(e, t, 'alu_1ESO_A_1', '1ESO_A', '10:35').codigo, 'ERROR_OCUPADO');
   assert.equal(e.hojas.Historico_Salidas.datos.length, 1);
   e.ocuparCerrojo(false);
-  assert.equal(autorizar(e, t, 'alu_1ESO_A_1', '1ESO_A', '09:35').ok, true);
+  assert.equal(autorizar(e, t, 'alu_1ESO_A_1', '1ESO_A', '10:35').ok, true);
 });
 
 test('segunda salida en el bloque: aviso con el docente anterior y salida excepcional justificada', () => {
   const e = entorno();
   const t1 = e.entrar('docente.uno@g.educaand.es');
   const t2 = e.entrar('docente.dos@g.educaand.es');
-  assert.equal(autorizar(e, t1, 'alu_1ESO_A_1', '1ESO_A', '09:12', { justificacion: 'Lo necesita' }).ok, true);
-  const s = e.pedir({ accion: 'estado', token: t1 }, hora('09:14')).activas[0];
-  e.pedir({ accion: 'regreso', token: t1, exit_id: s.exit_id }, hora('09:16'));
-  const d = autorizar(e, t2, 'alu_1ESO_A_1', '1ESO_A', '10:00');
+  assert.equal(autorizar(e, t1, 'alu_1ESO_A_1', '1ESO_A', '09:42', { justificacion: 'Lo necesita' }).ok, true);
+  const s = e.pedir({ accion: 'estado', token: t1 }, hora('09:44')).activas[0];
+  e.pedir({ accion: 'regreso', token: t1, exit_id: s.exit_id }, hora('09:46'));
+  const d = autorizar(e, t2, 'alu_1ESO_A_1', '1ESO_A', '10:40');
   assert.equal(d.codigo, 'DUPLICADO');
   assert.equal(d.is_duplicate, true);
   assert.equal(d.previous_teacher, 'docente.uno@g.educaand.es');
-  assert.equal(d.time, '09:12');
-  assert.equal(autorizar(e, t2, 'alu_1ESO_A_1', '1ESO_A', '10:00', { justificacion_excepcional: 'corto' }).codigo, 'DUPLICADO');
-  const ok = autorizar(e, t2, 'alu_1ESO_A_1', '1ESO_A', '10:00', { justificacion_excepcional: 'Indicación médica de la familia' });
+  assert.equal(d.time, '09:42');
+  assert.equal(autorizar(e, t2, 'alu_1ESO_A_1', '1ESO_A', '10:40', { justificacion_excepcional: 'corto' }).codigo, 'DUPLICADO');
+  const ok = autorizar(e, t2, 'alu_1ESO_A_1', '1ESO_A', '10:40', { justificacion_excepcional: 'Indicación médica de la familia' });
   assert.equal(ok.is_override, true);
   const fila = e.hojas.Historico_Salidas.datos.at(-1);
   assert.equal(fila[10], true);
   assert.equal(fila[11], 'Indicación médica de la familia');
   // En el bloque 2 la cuota se reinicia
-  const s2 = e.pedir({ accion: 'estado', token: t2 }, hora('10:02')).activas[0];
-  e.pedir({ accion: 'regreso', token: t2, exit_id: s2.exit_id }, hora('10:04'));
+  const s2 = e.pedir({ accion: 'estado', token: t2 }, hora('10:42')).activas[0];
+  e.pedir({ accion: 'regreso', token: t2, exit_id: s2.exit_id }, hora('10:44'));
   assert.equal(autorizar(e, t2, 'alu_1ESO_A_1', '1ESO_A', '13:10').ok, true);
 });
 
@@ -156,13 +188,13 @@ test('anular: solo el mismo docente y en los 2 primeros minutos; no cuenta como 
   const e = entorno();
   const t1 = e.entrar('docente.uno@g.educaand.es');
   const t2 = e.entrar('docente.dos@g.educaand.es');
-  autorizar(e, t1, 'alu_1ESO_A_1', '1ESO_A', '09:40');
-  const s = e.pedir({ accion: 'estado', token: t1 }, hora('09:41')).activas[0];
+  autorizar(e, t1, 'alu_1ESO_A_1', '1ESO_A', '10:40');
+  const s = e.pedir({ accion: 'estado', token: t1 }, hora('10:41')).activas[0];
   assert.equal(s.puede_anular, true);
-  assert.equal(e.pedir({ accion: 'anular', token: t2, exit_id: s.exit_id }, hora('09:41')).codigo, 'ERROR_NO_SE_PUEDE_ANULAR');
-  assert.equal(e.pedir({ accion: 'anular', token: t1, exit_id: s.exit_id }, hora('09:43')).codigo, 'ERROR_NO_SE_PUEDE_ANULAR');
-  assert.equal(e.pedir({ accion: 'anular', token: t1, exit_id: s.exit_id }, hora('09:41')).ok, true);
-  assert.equal(autorizar(e, t1, 'alu_1ESO_A_1', '1ESO_A', '09:45').ok, true, 'la anulada no cuenta para la cuota');
+  assert.equal(e.pedir({ accion: 'anular', token: t2, exit_id: s.exit_id }, hora('10:41')).codigo, 'ERROR_NO_SE_PUEDE_ANULAR');
+  assert.equal(e.pedir({ accion: 'anular', token: t1, exit_id: s.exit_id }, hora('10:43')).codigo, 'ERROR_NO_SE_PUEDE_ANULAR');
+  assert.equal(e.pedir({ accion: 'anular', token: t1, exit_id: s.exit_id }, hora('10:41')).ok, true);
+  assert.equal(autorizar(e, t1, 'alu_1ESO_A_1', '1ESO_A', '10:45').ok, true, 'la anulada no cuenta para la cuota');
 });
 
 test('salidas sin regreso se cierran solas al terminar el bloque y liberan el cupo', () => {
@@ -176,7 +208,7 @@ test('salidas sin regreso se cierran solas al terminar el bloque y liberan el cu
   assert.equal(fila[12], 'NO_RETURN');
   assert.equal(fila[13], 'SISTEMA');
   assert.equal(fila[6].toISOString(), hora('11:30').toISOString());
-  assert.equal(autorizar(e, t, 'alu_1ESO_A_2', '1ESO_A', '12:10', { justificacion: 'Necesidad' }).ok, true);
+  assert.equal(autorizar(e, t, 'alu_1ESO_A_2', '1ESO_A', '12:10', { justificacion: 'Necesidad', excepcion_hora: true }).ok, true);
 });
 
 test('estado: grupo según horario, aula asignada o el elegido; salidas del bloque por alumno', () => {
@@ -192,20 +224,23 @@ test('estado: grupo según horario, aula asignada o el elegido; salidas del bloq
   assert.equal(est.grupo, '1ESO_D');
   assert.equal(est.alumnos.length, 2);
   assert.deepEqual(est.grupos, GRUPOS);
-  autorizar(e, t, 'alu_1ESO_D_1', '1ESO_D', '09:50');
-  const est2 = e.pedir({ accion: 'estado', token: t, grupo: '1ESO_D' }, hora('09:51'));
-  assert.equal(est2.alumnos.find((a) => a.id === 'alu_1ESO_D_1').salidas[0].hora, '09:50');
-  assert.equal(est2.franja.nombre, 'Hora preferente A');
+  autorizar(e, t, 'alu_1ESO_D_1', '1ESO_D', '10:50');
+  const est2 = e.pedir({ accion: 'estado', token: t, grupo: '1ESO_D' }, hora('10:51'));
+  assert.equal(est2.alumnos.find((a) => a.id === 'alu_1ESO_D_1').salidas[0].hora, '10:50');
+  assert.equal(est2.franja.nombre, '3ª hora (recomendada)');
   assert.equal(est2.franja.preferente, true);
+  assert.equal(est2.edificio, 'B');
+  const est3 = e.pedir({ accion: 'estado', token: t }, hora('12:30'));
+  assert.equal(est3.franja.restringida, true, '4ª hora restringida');
 });
 
 test('histórico del día para el Equipo Directivo; los días anteriores no cuentan', () => {
   const e = entorno();
   const t = e.entrar('docente.uno@g.educaand.es');
   const td = e.entrar('directiva@g.educaand.es');
-  e.pedir({ accion: 'autorizar', token: t, alumno: 'alu_1ESO_A_1', grupo: '1ESO_A' }, madrid('2026-10-22', '09:40'));
+  e.pedir({ accion: 'autorizar', token: t, alumno: 'alu_1ESO_A_1', grupo: '1ESO_A' }, madrid('2026-10-22', '10:40'));
   e.pedir({ accion: 'autorizar', token: t, alumno: 'alu_1ESO_A_1', grupo: '1ESO_A' }, madrid('2026-10-22', '13:40'));
-  autorizar(e, t, 'alu_1ESO_A_1', '1ESO_A', '09:40'); // al día siguiente no es duplicado
+  autorizar(e, t, 'alu_1ESO_A_1', '1ESO_A', '10:40'); // al día siguiente no es duplicado
   const h = e.pedir({ accion: 'historico', token: td, fecha: '2026-10-22' }, hora('10:00'));
   assert.equal(h.salidas.length, 2);
   assert.equal(e.pedir({ accion: 'historico', token: td }, hora('10:00')).salidas.length, 1);

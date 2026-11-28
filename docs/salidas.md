@@ -39,15 +39,22 @@ en las propiedades del script, sesión de 6 h) y mismos códigos de grupo e iden
   servicios externos la primera vez.
 - Local: `URL_SERVIDOR_CENTRAL=http://localhost:8788` en `pruebas/salidas/servidor-local.mjs`.
 
-## Reglas (PRD)
+## Reglas (normas del centro, versión 1.4.0, 27/11/2026)
 
-- Lunes a viernes. Bloque 1 08:30–11:30 (preferente A 09:30–10:30), recreo 11:30–12:00 sin salidas,
-  bloque 2 12:00–15:00 (preferente B 13:00–14:00). Fuera de la hora preferente, motivo de ≥ 5 caracteres.
-- Cupo: ≤ 5 fuera en todo el centro y ≤ 1 por grupo, con `LockService`.
-- 1 salida por alumno y bloque; la 2ª es excepcional con justificación de ≥ 10 caracteres y avisa de quién
-  autorizó la anterior y a qué hora.
+- Lunes a viernes. Tramo 1 08:30–11:30, recreo 11:30–12:00 sin salidas, tramo 2 12:00–15:00.
+- **1ª y 4ª hora: no se sale**, salvo excepción que autoriza el propio profesor: en la ventana marca "Autorizo esta
+  salida como excepción" y escribe el motivo (el servidor exige `excepcion_hora: true` y motivo; si no,
+  `ERROR_HORA_NO_PERMITIDA`). En el histórico queda "Excepción autorizada por el profesor (1ª hora): motivo".
+- **3ª y 5ª hora: recomendadas** (autorización directa). 2ª y 6ª: con motivo de ≥ 5 caracteres.
+- **Dos edificios** (`edificioDe_` en el servidor, `edificioDe` en la app): A = cursos pares de ESO y Bachillerato
+  (2º, 4º ESO, 2º Bach) y 1º de FP Básica; B = el resto (1º y 3º ESO, 1º Bach, ciclos y 2º de FP Básica; confirmado
+  por Miguel Ángel el 28/11/2026). **Máximo 2 fuera a la vez en cada edificio**
+  (`CUPO_EDIFICIO`, error `ERROR_EDIFICIO_LLENO`) y ≤ 1 por grupo, con `LockService`. La pantalla muestra el
+  contador de cada edificio.
+- 1 salida por alumno y tramo (antes y después del recreo); la 2ª es excepcional con justificación de ≥ 10
+  caracteres (la autoriza el profesor) y avisa de quién autorizó la anterior y a qué hora.
 - Temporizador de 5 minutos. Cualquier docente puede marcar el regreso; quien autorizó puede anular en 2 min.
-- Al terminar un bloque, las salidas sin regreso se cierran como `NO_RETURN` (decisión propuesta por Claude).
+- Al terminar un tramo, las salidas sin regreso se cierran como `NO_RETURN` (decisión propuesta por Claude).
 - Equipo Directivo (`rol` = DIRECTIVO): histórico, profesorado, restablecer contraseñas e importar horarios.
 
 ## Pruebas

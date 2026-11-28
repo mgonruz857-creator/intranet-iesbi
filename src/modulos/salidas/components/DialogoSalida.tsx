@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, X } from 'lucide-react';
 import { llamarApi } from '../services/api';
-import { etiquetaGrupo, type AlumnoGrupo, type Estado } from '../tipos';
+import { edificioDe, etiquetaGrupo, type AlumnoGrupo, type Estado } from '../tipos';
 
 interface Props {
   alumno: AlumnoGrupo;
@@ -19,6 +19,7 @@ export default function DialogoSalida({ alumno, estado, cerrar, hecho, fallo }: 
   const [duplicado, setDuplicado] = useState<Duplicado | null>(previa ? { previous_teacher: previa.docente, time: previa.hora } : null);
   const [justificacion, setJustificacion] = useState('');
   const [excepcional, setExcepcional] = useState('');
+  const [excepcionHora, setExcepcionHora] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const primerCampo = useRef<HTMLTextAreaElement>(null);
 
@@ -34,12 +35,16 @@ export default function DialogoSalida({ alumno, estado, cerrar, hecho, fallo }: 
   if (franja.bloque === 'RECREO') bloqueo = 'Durante el recreo no se conceden salidas.';
   else if (franja.bloque === 'FUERA') bloqueo = 'Fuera de la jornada lectiva no se conceden salidas.';
   else if (activas.some((s) => s.alumno === alumno.id)) bloqueo = 'Este alumno ya está fuera del aula.';
+  else if (cupo.edificio && activas.filter((s) => edificioDe(s.grupo) === edificioDe(estado.grupo)).length >= cupo.edificio) {
+    bloqueo = 'Ya hay ' + cupo.edificio + ' alumnos del edificio ' + edificioDe(estado.grupo) + ' fuera del aula. Espere a que uno regrese.';
+  }
   else if (activas.length >= cupo.global) bloqueo = 'Cupo máximo alcanzado (' + cupo.global + '/' + cupo.global + '). Espere a que un alumno regrese.';
   else if (activas.filter((s) => s.grupo === estado.grupo).length >= cupo.aula) bloqueo = 'Ya hay un alumno de este grupo fuera del aula. Espere a que regrese.';
 
-  const pideMotivo = !bloqueo && !franja.preferente;
-  const pideExcepcional = !bloqueo && !!duplicado;
-  const valido = !bloqueo &&
+  const restringida = !bloqueo && !!franja.restringida;
+  const pideMotivo = !bloqueo && !franja.preferente && (!restringida || excepcionHora);
+  const pideExcepcional = !bloqueo && !!duplicado && (!restringida || excepcionHora);
+  const valido = !bloqueo && (!restringida || excepcionHora) &&
     (!pideMotivo || justificacion.trim().length >= cupo.min_justificacion) &&
     (!pideExcepcional || excepcional.trim().length >= cupo.min_excepcional);
 
@@ -48,6 +53,7 @@ export default function DialogoSalida({ alumno, estado, cerrar, hecho, fallo }: 
     setEnviando(true);
     const r = await llamarApi<Duplicado>('autorizar', {
       alumno: alumno.id, grupo: estado.grupo, justificacion, justificacion_excepcional: duplicado ? excepcional : '',
+      excepcion_hora: restringida && excepcionHora,
     });
     setEnviando(false);
     if (r.ok) { hecho('Salida autorizada: ' + alumno.nombre + ' ' + alumno.apellidos + '.'); return; }
@@ -69,7 +75,16 @@ export default function DialogoSalida({ alumno, estado, cerrar, hecho, fallo }: 
         </div>
 
         {bloqueo && <Caja tono="rojo">{bloqueo}</Caja>}
-        {!bloqueo && franja.preferente && !duplicado && <Caja tono="verde">Hora preferente: la salida se autoriza directamente.</Caja>}
+        {!bloqueo && franja.preferente && !duplicado && <Caja tono="verde">Hora recomendada: la salida se autoriza directamente.</Caja>}
+        {restringida && (
+          <Caja tono="rojo">
+            A 1ª y 4ª hora no se sale al baño. Solo usted, como profesor, puede autorizar una excepción.
+            <label className="flex items-start gap-2 mt-2 font-semibold cursor-pointer">
+              <input type="checkbox" checked={excepcionHora} onChange={(e) => setExcepcionHora(e.target.checked)} className="mt-0.5 w-4 h-4" />
+              <span>Autorizo esta salida como excepción</span>
+            </label>
+          </Caja>
+        )}
         {pideExcepcional && duplicado && (
           <Caja tono="ambar">
             Este alumno ya salió en este bloque a las <b>{duplicado.time}</b>. Autorizó: <b className="break-all">{duplicado.previous_teacher}</b>.
@@ -79,7 +94,7 @@ export default function DialogoSalida({ alumno, estado, cerrar, hecho, fallo }: 
 
         {pideMotivo && (
           <label className="block space-y-1">
-            <span className="text-xs font-semibold text-slate-700">Motivo de la salida (fuera de la hora preferente)</span>
+            <span className="text-xs font-semibold text-slate-700">{restringida ? 'Motivo de la excepción' : 'Motivo de la salida (fuera de las horas recomendadas)'}</span>
             <textarea ref={primerCampo} value={justificacion} maxLength={300} onChange={(e) => setJustificacion(e.target.value)} className={area} />
             <Contador texto={justificacion} minimo={cupo.min_justificacion} />
           </label>
@@ -96,7 +111,7 @@ export default function DialogoSalida({ alumno, estado, cerrar, hecho, fallo }: 
           <button onClick={cerrar} className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold hover:bg-slate-50">Cancelar</button>
           <button onClick={autorizar} disabled={!valido || enviando}
             className="px-4 py-2 rounded-xl bg-sky-700 hover:bg-sky-800 text-white text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
-            {enviando ? 'Autorizando…' : duplicado ? 'Autorizar salida excepcional' : 'Autorizar salida'}
+            {enviando ? 'Autorizando…' : duplicado || restringida ? 'Autorizar salida excepcional' : 'Autorizar salida'}
           </button>
         </div>
       </div>
