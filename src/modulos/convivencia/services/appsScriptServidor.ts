@@ -1486,7 +1486,7 @@ function panelLeer(req) {
   });
   return { ok: true, profesores: profesores, horarios: db.horarios || [], pendientes: db.horarios_pendientes || [],
            sustituciones: db.sustituciones || [], curso: cursoActual(db), cursosArchivados: db.cursos_archivados || [],
-           equivalencias: db.equivalencias_grupos || {} };
+           equivalencias: db.equivalencias_grupos || {}, correspondencias: db.correspondencia_docentes || {} };
 }
 
 /** Panel: cambia los permisos de un docente. Siempre debe quedar al menos un administrador del panel. */
@@ -1585,6 +1585,14 @@ function guardarHorarios(req) {
       });
       db.equivalencias_grupos = guardadas;
     }
+    // Nombre de cada docente en Séneca → su correo: así al volver a subir el PDF sale ya identificado
+    var co = req.correspondencias;
+    if (co && typeof co === 'object' && !Array.isArray(co)) {
+      Object.keys(co).slice(0, 500).forEach(function (n) {
+        var e = norm(co[n]);
+        if (e && buscarProfesor(db, e)) recordarCorrespondencia(db, n, e);
+      });
+    }
     registrarAuditoria(db, s.email, 'Horarios', 'Horario guardado: ' + nuevas.length + ' horas de ' + Object.keys(docentes).length +
       ' docentes; ' + pendientes.length + ' horarios sin docente.');
     escribirDb(db);
@@ -1596,6 +1604,13 @@ function guardarHorarios(req) {
 }
 
 function nombrePendiente(n) { return String(n || '').replace(/\s+/g, ' ').trim().slice(0, 120); }
+
+function recordarCorrespondencia(db, nombreSeneca, email) {
+  var n = nombrePendiente(nombreSeneca);
+  if (!n) return;
+  db.correspondencia_docentes = db.correspondencia_docentes || {};
+  db.correspondencia_docentes[n] = norm(email);
+}
 
 /** [email, dia, desde, hasta, grupo, aula] normalizada, o null si no es válida (email sin comprobar). */
 function filaHorarioValida(f) {
@@ -1766,6 +1781,7 @@ function resolverHorarioPendiente(req) {
     }
     var r0 = docenteParaPanel(db, s, req);
     var email = r0.email, alta = r0.alta;
+    recordarCorrespondencia(db, nombre, email);
     db.horarios = (db.horarios || []).filter(function (f) { return f && norm(f[0]) !== email; })
       .concat(pe.filas.map(function (f) { return [email].concat(f); }));
     quitar();
@@ -2270,7 +2286,7 @@ function guardar(req) {
 // Datos que solo gestiona el servidor: nunca se toman de lo que envía la app
 var CLAVES_SERVIDOR = ['credenciales_profesores', 'credenciales_v1_alternativas', 'reset_credenciales_emails',
   'migracion_v2', 'saldos_antes_v2', 'horarios', 'permisos_intranet', 'horarios_pendientes', 'sustituciones',
-  'curso_actual', 'cursos_archivados', 'fecha_cambio_curso', 'mi_horario', 'equivalencias_grupos'];
+  'curso_actual', 'cursos_archivados', 'fecha_cambio_curso', 'mi_horario', 'equivalencias_grupos', 'correspondencia_docentes'];
 
 /**
  * Lista de lo que la app dice haber cambiado (entrada.cambios). Si existe, de lo demás se conserva

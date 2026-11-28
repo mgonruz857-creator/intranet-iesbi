@@ -67,6 +67,16 @@ ok('una nueva elección cambia solo esa y conserva las demás', eqs['Reunión dp
   ok('"guardar" de convivencia no las cambia', srv.post({ accion: 'panelLeer', token: tAdmin }).equivalencias['1º ESO A'] === '1ESO_A');
 }
 
+console.log('== Nombre de Séneca → docente (se recuerda en el servidor)');
+r = srv.post({ accion: 'guardarHorarios', token: tAdmin, filas: [[DOC, 4, '08:30', '09:30', '1ESO_A']], docentes: [DOC],
+  correspondencias: { 'PÉREZ  RARO,DANI': DOC, 'NADIE,NADA': 'nadie@g.educaand.es' } });
+let co = srv.post({ accion: 'panelLeer', token: tAdmin }).correspondencias;
+ok('se recuerda el nombre asignado a mano (y no uno que no está de alta)', co['PÉREZ RARO,DANI'] === DOC && !('NADIE,NADA' in co), JSON.stringify(co));
+r = srv.post({ accion: 'guardarHorarios', token: tAdmin, filas: [], docentes: [], pendientes: [{ nombre: 'OTRO,NOMBRE', filas: [[1, '08:30', '09:30', '1ESO_A', '']] }] });
+r = srv.post({ accion: 'resolverHorarioPendiente', token: tAdmin, nombreSeneca: 'OTRO,NOMBRE', email: JEFA });
+co = srv.post({ accion: 'panelLeer', token: tAdmin }).correspondencias;
+ok('asignar un horario pendiente también lo recuerda', r.ok && co['OTRO,NOMBRE'] === JEFA, JSON.stringify(r));
+
 console.log('== "guardar" de convivencia no pisa horarios ni permisos');
 const leido = srv.post({ accion: 'leer', token: tAdmin }).data;
 const viejo = JSON.parse(JSON.stringify(leido));
