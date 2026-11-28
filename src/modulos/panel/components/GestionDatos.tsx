@@ -15,6 +15,8 @@ interface Props {
   seccion: 'profesorado' | 'alumnado' | 'copias';
   /** Tras guardar, para que las demás pestañas del panel (permisos, horarios) se actualicen. */
   alCambiar?: () => void;
+  /** Correos de quien tiene horario (para marcar en Profesorado a quien no lo tiene). */
+  conHorario?: Set<string>;
 }
 
 const CANAL = 'sigc_bi_realtime_sync';
@@ -29,7 +31,7 @@ function avisarOtrasPestanas() {
   } catch { /* sin canal: no pasa nada */ }
 }
 
-export default function GestionDatos({ seccion, alCambiar }: Props) {
+export default function GestionDatos({ seccion, alCambiar, conHorario }: Props) {
   const usuario: Profesor | null = AuthService.getCurrentUser();
   const esAdmin = AuthService.isAdmin(usuario);
   const [cargado, setCargado] = useState(StorageService.hasLoadedFromDrive());
@@ -114,6 +116,7 @@ export default function GestionDatos({ seccion, alCambiar }: Props) {
       <EtlImportView
         currentUser={usuario}
         seccion={seccion}
+        conHorario={seccion === 'profesorado' ? conHorario : undefined}
         auditLogs={registro}
         profesores={profesores}
         alumnos={alumnos}

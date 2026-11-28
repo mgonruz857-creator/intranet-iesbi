@@ -94,7 +94,8 @@ export default function App() {
         })()}
         {pestana === 'profesorado' || pestana === 'alumnado' || pestana === 'copias' ? (
           <Suspense fallback={<div className="p-10 text-center text-slate-500">Cargando…</div>}>
-            <GestionDatos key={pestana} seccion={pestana} alCambiar={cargar} />
+            <GestionDatos key={pestana} seccion={pestana} alCambiar={cargar}
+              conHorario={profesores ? conHorarioEfectivo(horarios, sustituciones) : undefined} />
           </Suspense>
         ) : error ? (
           <div className="bg-white border border-red-200 rounded-2xl p-6 text-center text-sm text-red-700">{error}</div>

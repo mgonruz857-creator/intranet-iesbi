@@ -60,6 +60,8 @@ interface EtlImportViewProps {
    * 'convivencia' es lo que queda en Convivencia (cursos escolares y vaciado). Sin valor: todo, como antes.
    */
   seccion?: 'profesorado' | 'alumnado' | 'copias' | 'convivencia';
+  /** Panel: correos (en minúsculas) de quien tiene horario, propio o prestado por sustitución. Sin valor: no se muestra. */
+  conHorario?: Set<string>;
 }
 
 type PestanaEtl = 'alumnos' | 'profesores' | 'gestion_profesores' | 'gestion_alumnos' | 'cursos';
@@ -77,6 +79,7 @@ export const EtlImportView: React.FC<EtlImportViewProps> = ({
   profesores = [],
   alumnos = [],
   seccion,
+  conHorario,
 }) => {
   const pestanasVisibles: PestanaEtl[] = seccion ? PESTANAS_SECCION[seccion] : ['alumnos', 'profesores', 'gestion_profesores', 'gestion_alumnos', 'cursos'];
   const ver = (t: PestanaEtl) => pestanasVisibles.includes(t);
@@ -119,7 +122,7 @@ export const EtlImportView: React.FC<EtlImportViewProps> = ({
 
   // Teacher management state (dar de baja, reactivar, alta manual)
   const [searchTermProfesor, setSearchTermProfesor] = useState<string>('');
-  const [filtroEstadoProfesor, setFiltroEstadoProfesor] = useState<'TODOS' | 'ACTIVO' | 'INACTIVO'>('TODOS');
+  const [filtroEstadoProfesor, setFiltroEstadoProfesor] = useState<'TODOS' | 'ACTIVO' | 'INACTIVO' | 'SIN_HORARIO'>('TODOS');
   const [profesorABajar, setProfesorABajar] = useState<Profesor | null>(null);
   const [motivoBajaInput, setMotivoBajaInput] = useState<string>('');
   const [modalAltaOpen, setModalAltaOpen] = useState<boolean>(false);
@@ -792,6 +795,8 @@ El Amrani Youssef,4º ESO D`;
   });
 
   // Filtered teachers list for management
+  const tieneHorario = (p: Profesor) => !conHorario || conHorario.has(p.email.toLowerCase().trim());
+  const numSinHorario = conHorario ? (profesores || []).filter((p) => (p.estado || 'ACTIVO') === 'ACTIVO' && !tieneHorario(p)).length : 0;
   const filteredProfesores = (profesores || []).filter((p) => {
     const matchesSearch = 
       p.nombre.toLowerCase().includes(searchTermProfesor.toLowerCase()) ||
@@ -802,6 +807,7 @@ El Amrani Youssef,4º ESO D`;
     const estadoProf = p.estado || 'ACTIVO';
     if (filtroEstadoProfesor === 'ACTIVO') return matchesSearch && estadoProf === 'ACTIVO';
     if (filtroEstadoProfesor === 'INACTIVO') return matchesSearch && estadoProf === 'INACTIVO';
+    if (filtroEstadoProfesor === 'SIN_HORARIO') return matchesSearch && estadoProf === 'ACTIVO' && !!conHorario && !tieneHorario(p);
     return matchesSearch;
   });
 
@@ -1123,6 +1129,20 @@ El Amrani Youssef,4º ESO D`;
                       {est === 'TODOS' ? 'Todos' : est === 'ACTIVO' ? 'Activos' : 'Bajas'}
                     </button>
                   ))}
+                  {conHorario && (
+                    <button
+                      type="button"
+                      onClick={() => setFiltroEstadoProfesor('SIN_HORARIO')}
+                      className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                        filtroEstadoProfesor === 'SIN_HORARIO'
+                          ? 'bg-white text-amber-900 shadow-xs'
+                          : 'text-amber-800 hover:text-amber-950'
+                      }`}
+                      title="Docentes de alta que aún no tienen horario (se cargan en la pestaña Horarios con el PDF de Séneca)"
+                    >
+                      Sin horario ({numSinHorario})
+                    </button>
+                  )}
                 </div>
 
                 {profesores.some(p => p.estado === 'INACTIVO') && (
@@ -1182,6 +1202,11 @@ El Amrani Youssef,4º ESO D`;
                                   Pendiente de primer acceso
                                 </div>
                               )
+                            )}
+                            {isActivo && conHorario && !tieneHorario(prof) && (
+                              <div className="text-[10px] text-amber-800 font-semibold mt-0.5" title="Cárguelo en la pestaña Horarios con el PDF de Séneca">
+                                ⚠ Sin horario
+                              </div>
                             )}
                             {!isActivo && prof.motivo_baja && (
                               <div className="text-[10px] text-rose-700 font-medium mt-0.5">
