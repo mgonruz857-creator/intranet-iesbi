@@ -38,7 +38,8 @@ const CONFIG: Record<Entorno, ConfigDrive> = {
     // Servidor único de la intranet en la cuenta del centro (proyecto API_Intranet_PRODUCCION).
     // Su archivo de datos es una COPIA del de la app de convivencia antigua, hecha el día del cambio
     // (28/11/2026). La app antigua (convivenciaiesbi.github.io), su servidor y su carpeta no se tocan.
-    urlApi: '', // pegar aquí la URL /exec de API_Intranet_PRODUCCION
+    urlApi:
+      'https://script.google.com/macros/s/AKfycbzyxJgKThLBXz7E0qgmbQhMxtS31XZcmHsCZ5j_MagfR5Z7GPYWy2Q48PqXZIIxUCm8/exec', // API_Intranet_PRODUCCION
     cuenta: '14007180.aplicaciones@g.educaand.es',
     carpetaId: '1sEI0H7cAwRViVDwtGuQfVdaqsqFPSUcv', // proyectoIntranet/PRODUCCION
     nombreCarpeta: 'proyectoIntranet/PRODUCCION',
