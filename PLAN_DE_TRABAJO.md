@@ -163,8 +163,12 @@ Preparado (24/11): carpeta, hojas y proyecto API_Intranet_PRODUCCION creados vac
 creada; guía del día https://claude.ai/artifact/DJKHDFNPNnmwUYndTv5v1C; página de aviso sin publicar en
 /mnt/project-files/intranet/produccion/aviso-app-convivencia/. Falta: fecha y elegir repositorio de producción.
 
-- [ ] Transferir el repositorio a la organización `intranetiesbi`, renombrarlo `intranetiesbi.github.io`
-      y publicar con PRODUCCION, cuando Miguel Ángel lo diga.
-- [ ] Al pasar a producción (acordado el 19/11/2026, NO antes): quitar el botón "Vaciar alumnos y partes" y el
+- [x] **Hecho el 28/11/2026 (tarde).** Producción en el repositorio nuevo `intranetiesbi/intranetiesbi.github.io`
+      (mismo código; `deploy.yml` compila en PRODUCCION por el nombre del repositorio). Este repositorio sigue siendo
+      PRUEBAS. Servidor `API_Intranet_PRODUCCION`; datos copiados con `servidores/migracion/ExportarParaIntranet.gs`
+      + `importarDesdeConvivencia` (copia idéntica, recuentos iguales, 74 contraseñas). convivenciaiesbi.github.io
+      publica solo la página de aviso (`aviso-intranet/`, volver atrás = revertir ese commit).
+      Cambios futuros: primero aquí (PRUEBAS), después `git push centro main` al repositorio del centro.
+- [x] Al pasar a producción (acordado el 19/11/2026, NO antes): quitar el botón "Vaciar alumnos y partes" y el
       recuadro "Infraestructura Google Drive & ETL de Ingesta" (`EtlImportView`); en Copias de seguridad dejar solo
       el botón "Descargar copia completa".
