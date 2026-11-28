@@ -52,6 +52,21 @@ ok('volver a subir el de un docente sustituye solo el suyo', r.ok && r.total ===
 r = srv.post({ accion: 'guardarHorarios', token: tDoc, filas: [] });
 ok('un docente no puede guardar horarios', !r.ok && r.codigo === 'PROHIBIDO');
 
+console.log('== Equivalencias de grupos de Séneca (del centro, no del navegador)');
+r = srv.post({ accion: 'guardarHorarios', token: tAdmin, filas: [], docentes: [],
+  equivalencias: { '1º ESO A': '1ESO_A', 'Reunión dpto.': '', 'Raro': 'no-vale<script>' } });
+let eqs = srv.post({ accion: 'panelLeer', token: tAdmin }).equivalencias;
+ok('se guardan y las lee el panel', eqs['1º ESO A'] === '1ESO_A' && eqs['Reunión dpto.'] === '' && !('Raro' in eqs), JSON.stringify(eqs));
+r = srv.post({ accion: 'guardarHorarios', token: tAdmin, filas: [], docentes: [], equivalencias: { 'Reunión dpto.': '2ESO_A' } });
+eqs = srv.post({ accion: 'panelLeer', token: tAdmin }).equivalencias;
+ok('una nueva elección cambia solo esa y conserva las demás', eqs['Reunión dpto.'] === '2ESO_A' && eqs['1º ESO A'] === '1ESO_A');
+{
+  const d = srv.post({ accion: 'leer', token: tAdmin }).data;
+  d.equivalencias_grupos = { '1º ESO A': '' };
+  srv.post({ accion: 'guardar', token: tAdmin, data: d });
+  ok('"guardar" de convivencia no las cambia', srv.post({ accion: 'panelLeer', token: tAdmin }).equivalencias['1º ESO A'] === '1ESO_A');
+}
+
 console.log('== "guardar" de convivencia no pisa horarios ni permisos');
 const leido = srv.post({ accion: 'leer', token: tAdmin }).data;
 const viejo = JSON.parse(JSON.stringify(leido));

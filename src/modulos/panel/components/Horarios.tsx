@@ -13,11 +13,13 @@ interface Props {
   horarios: FilaHorario[];
   pendientes: HorarioPendiente[];
   sustituciones: Sustitucion[];
+  /** Texto de grupo de Séneca → grupo de la intranet ('' = no es un grupo), guardado en el servidor. */
+  equivalencias: Record<string, string>;
   avisar: (texto: string, error?: boolean) => void;
   alGuardar: () => void;
 }
 
-export default function Horarios({ profesores, horarios, pendientes, sustituciones, avisar, alGuardar }: Props) {
+export default function Horarios({ profesores, horarios, pendientes, sustituciones, equivalencias, avisar, alGuardar }: Props) {
   const activos = profesores.filter((p) => p.estado !== 'INACTIVO');
   // En Séneca el nombre viene como "APELLIDOS,NOMBRE"
   const docentes = activos.map((p) => ({ email: p.email.toLowerCase(), nombre: nombreCompleto(p) }));
@@ -25,7 +27,7 @@ export default function Horarios({ profesores, horarios, pendientes, sustitucion
   const sinHorario = docentes.filter((d) => !conHorario.has(d.email));
   return (
     <div className="space-y-4">
-      <ImportarHorario docentes={docentes} grupos={GRUPOS} avisar={avisar} alGuardar={alGuardar} />
+      <ImportarHorario docentes={docentes} grupos={GRUPOS} equivalencias={equivalencias} avisar={avisar} alGuardar={alGuardar} />
       {pendientes.length > 0 && (
         <section className="bg-white border border-amber-200 rounded-2xl p-4 text-sm space-y-3">
           <div>
@@ -54,6 +56,23 @@ export default function Horarios({ profesores, horarios, pendientes, sustitucion
             <summary className="cursor-pointer font-semibold text-slate-700">Ver docentes sin horario</summary>
             <ul className="mt-2 grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
               {sinHorario.map((d) => <li key={d.email} className="text-slate-600">{d.nombre}</li>)}
+            </ul>
+          </details>
+        )}
+        {Object.keys(equivalencias).length > 0 && (
+          <details className="text-xs">
+            <summary className="cursor-pointer font-semibold text-slate-700">
+              Ver grupos de Séneca y su grupo en la intranet ({Object.keys(equivalencias).length})
+            </summary>
+            <p className="mt-2 text-slate-500">
+              Para cambiar alguno, vuelva a subir el PDF de Séneca: la lista saldrá con estos valores, en cualquier ordenador.
+            </p>
+            <ul className="mt-2 grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
+              {Object.entries(equivalencias).sort(([a], [b]) => a.localeCompare(b, 'es')).map(([t, g]) => (
+                <li key={t} className={g ? 'text-slate-600' : 'text-amber-800'}>
+                  <span className="font-mono">{t}</span> → {g ? etiquetaGrupo(g) : 'No es un grupo'}
+                </li>
+              ))}
             </ul>
           </details>
         )}
@@ -149,6 +168,8 @@ function PendienteFila({ pendiente, docentes, avisar, alResolver }: PendientePro
 interface ImportarProps {
   docentes: { email: string; nombre: string }[];
   grupos: string[];
+  /** Equivalencias guardadas en el servidor (texto de Séneca → grupo; '' = no es un grupo). */
+  equivalencias?: Record<string, string>;
   avisar: (texto: string, error?: boolean) => void;
   alGuardar: () => void;
 }
@@ -157,12 +178,12 @@ function leerEquivalencias(): Record<string, string> {
   try { return JSON.parse(localStorage.getItem(CLAVE_EQUIVALENCIAS) || '{}'); } catch { return {}; }
 }
 
-export function ImportarHorario({ docentes, grupos, avisar, alGuardar }: ImportarProps) {
+export function ImportarHorario({ docentes, grupos, equivalencias = {}, avisar, alGuardar }: ImportarProps) {
   const [paginas, setPaginas] = useState<PaginaHorario[]>([]);
   const [leyendo, setLeyendo] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [docenteDe, setDocenteDe] = useState<Record<string, string>>({});   // nombre Séneca → correo
-  const [grupoDe, setGrupoDe] = useState<Record<string, string>>(leerEquivalencias); // texto Séneca → código
+  const [grupoDe, setGrupoDe] = useState<Record<string, string>>(() => ({ ...leerEquivalencias(), ...equivalencias })); // texto Séneca → código
 
   async function leer(archivos: File[]) {
     if (!archivos.length) return;
@@ -232,7 +253,9 @@ export function ImportarHorario({ docentes, grupos, avisar, alGuardar }: Importa
       }).filter((f) => f[3]),
     })).filter((p) => p.filas.length);
     const resueltos = paginas.filter((p) => docenteDe[p.profesor]).map((p) => p.profesor);
-    const r = await llamarApi('guardarHorarios', { filas, docentes: correos, pendientes, resueltos }, 60000);
+    const usadas: Record<string, string> = {};
+    textosGrupo.forEach((t) => { usadas[t] = codigo(t); });
+    const r = await llamarApi('guardarHorarios', { filas, docentes: correos, pendientes, resueltos, equivalencias: usadas }, 60000);
     setGuardando(false);
     if (!r.ok) { avisar(r.error || 'No se pudo guardar el horario.', true); return; }
     avisar('Horario guardado: ' + r.guardados + ' horas de ' + r.docentes + ' docentes.' +
