@@ -113,22 +113,22 @@ export const CATALOGO_CONDUCTAS_V0: Record<CodigoConductaV0, ConductaV0Def> = {
   'GRA-MOVIL-USO': {
     codigo: 'GRA-MOVIL-USO',
     tipo: 'GRAVE',
-    titulo: 'Uso no autorizado del móvil',
-    puntos: -8,
-    puntos_descuento: 8,
+    titulo: 'Uso no autorizado del móvil, que entrega y guarda cuando se solicita',
+    puntos: 0,
+    puntos_descuento: 0,
     referencia_legal: 'Norma del centro',
     origen_norma: 'PLAN_CONVIVENCIA',
-    descripcion_normativa: 'Norma del Plan de Convivencia del IES Blas Infante: Uso de teléfonos móviles o dispositivos electrónicos personales en el centro sin permiso educativo expreso.',
+    descripcion_normativa: 'Norma del Plan de Convivencia del IES Blas Infante: Uso de teléfonos móviles o dispositivos electrónicos personales en el centro sin permiso educativo expreso, entregando y guardando el dispositivo cuando el profesorado lo solicita.',
   },
   'GRA-MOVIL-ENTREGA': {
     codigo: 'GRA-MOVIL-ENTREGA',
     tipo: 'GRAVE',
-    titulo: 'Negativa a guardar/entregar el móvil',
-    puntos: -5,
-    puntos_descuento: 5,
+    titulo: 'Uso no autorizado del móvil, que NO entrega o guarda cuando se solicita',
+    puntos: -10,
+    puntos_descuento: 10,
     referencia_legal: 'Norma del centro',
     origen_norma: 'PLAN_CONVIVENCIA',
-    descripcion_normativa: 'Norma del Plan de Convivencia del IES Blas Infante: Negativa a custodiar o entregar el dispositivo ante el requerimiento del profesorado.',
+    descripcion_normativa: 'Norma del Plan de Convivencia del IES Blas Infante: Uso de teléfonos móviles o dispositivos electrónicos personales en el centro sin permiso educativo expreso, negándose a entregar o guardar el dispositivo cuando el profesorado lo solicita.',
   },
   'GRA-AGRESION': {
     codigo: 'GRA-AGRESION',
@@ -270,6 +270,18 @@ export const MEDIDAS_INMEDIATAS_CATALOG: {
     descripcion: 'Recogida, limpieza o disculpa inmediata en el espacio lectivo.'
   },
 ];
+
+/**
+ * Medidas inmediatas que se pueden elegir para una conducta.
+ * Si el alumno NO entrega ni guarda el móvil (GRA-MOVIL-ENTREGA), no tiene sentido
+ * ofrecer la retirada/depósito del móvil.
+ */
+export function medidasInmediatasPermitidas(codigoConducta: string) {
+  if (codigoConducta === 'GRA-MOVIL-ENTREGA') {
+    return MEDIDAS_INMEDIATAS_CATALOG.filter(m => m.valor !== 'RETIRADA_MOVIL');
+  }
+  return MEDIDAS_INMEDIATAS_CATALOG;
+}
 
 /**
  * Mapeo de compatibilidad con vistas previas

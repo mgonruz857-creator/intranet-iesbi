@@ -3,11 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { TRAMITES_SANCION } from '../data/sancionesArt37';
 import { ExpedienteSancion, ClaveTramiteSancion, Alumno, Profesor, Sancion, Compensacion, AuditLog, DriveSyncStatus, GrupoEducativo, UnidadInstitucionalConfig, MovimientoPuntos, CursoAcademicoArchivo, InfoCursoAcademico, RoleUsuario } from '../types/convivencia';
 import { ALUMNOS_INICIALES, PROFESORES_INICIALES, SANCIONES_INICIALES, COMPENSACIONES_INICIALES, AUDIT_LOGS_INICIALES, MOVIMIENTOS_INICIALES } from '../data/seedData';
 import { ProfesorImportRow, parsearTextoOcsvProfesores } from './odsImportService';
 import { ES_ENTORNO_PRUEBAS, CUENTA_DRIVE, CARPETA_DRIVE_ID, NOMBRE_UNIDAD_DRIVE } from '../config/entorno';
-import { calcularCarnet, estadoPorSaldo, hoyLocal } from './carnetPuntos';
+import { calcularCarnet, estadoPorSaldo, hoyLocal, esAjusteManual } from './carnetPuntos';
 
 const KEY_ALUMNOS = 'sigc_bi_alumnos_v3';
 const KEY_PROFESORES = 'sigc_bi_profesores_v2';
@@ -1423,6 +1424,7 @@ export class StorageService {
         enviado_direccion: { ...vacio },
         enviado_familia: { ...vacio },
         aviso_equipo_docente: { ...vacio },
+        guardado_seneca: { ...vacio },
       },
       completado: false,
     };
@@ -1446,7 +1448,7 @@ export class StorageService {
     return lista[i];
   }
 
-  /** Marca o desmarca un trámite; el expediente queda completado cuando están los cuatro. */
+  /** Marca o desmarca un trámite; el expediente queda completado cuando están todos (5). */
   static marcarTramite(id: string, clave: ClaveTramiteSancion, hecho: boolean, usuarioEmail: string): ExpedienteSancion | null {
     const lista = this.getExpedientes();
     const i = lista.findIndex(e => e.id_expediente === id);
@@ -1454,7 +1456,7 @@ export class StorageService {
     const ahora = new Date().toISOString();
     const exp = { ...lista[i], tramites: { ...lista[i].tramites } };
     exp.tramites[clave] = hecho ? { hecho: true, fecha: ahora, por: usuarioEmail } : { hecho: false };
-    const todos = Object.values(exp.tramites).every(t => t.hecho);
+    const todos = TRAMITES_SANCION.every(t => exp.tramites[t.clave]?.hecho);
     exp.completado = todos;
     exp.fecha_completado = todos ? (lista[i].fecha_completado || ahora) : undefined;
     exp.timestamp = ahora;
@@ -1471,8 +1473,8 @@ export class StorageService {
     if (i === -1) return null;
     const ahora = new Date().toISOString();
     const exp = { ...lista[i], tramites: { ...lista[i].tramites } };
-    (Object.keys(exp.tramites) as ClaveTramiteSancion[]).forEach(k => {
-      if (!exp.tramites[k].hecho) exp.tramites[k] = { hecho: true, fecha: ahora, por: usuarioEmail };
+    TRAMITES_SANCION.forEach(({ clave: k }) => {
+      if (!exp.tramites[k]?.hecho) exp.tramites[k] = { hecho: true, fecha: ahora, por: usuarioEmail };
     });
     exp.completado = true;
     exp.fecha_completado = ahora;
@@ -1498,14 +1500,22 @@ export class StorageService {
   static getAlumnosPendientesDeExpediente(): Alumno[] {
     const expedientes = this.getExpedientes();
     const sanciones = this.getActiveSanciones();
+    const compensaciones = this.getCompensaciones();
     return this.getAlumnos().filter(a => {
       if (a.estado === 'BAJA' || a.puntos_actuales !== 0) return false;
-      const ultimoParte = sanciones
-        .filter(s => s.id_alumno === a.id_alumno && (s.puntos_restados || 0) > 0)
-        .map(s => s.fecha)
-        .sort()
-        .pop() || '';
-      return !expedientes.some(e => e.id_alumno === a.id_alumno && e.fecha_creacion.substring(0, 10) >= ultimoParte);
+      // Último hecho que quitó puntos (un parte o un ajuste manual no anulado), por el momento en que se
+      // registró: así un parte puesto el mismo día pero DESPUÉS de abrir el expediente vuelve a avisar.
+      const momento = (ts?: string, fecha?: string) => (ts && ts.length > 10 ? ts : (fecha || ''));
+      const ultimo = [
+        ...sanciones.filter(s => s.id_alumno === a.id_alumno && (s.puntos_restados || 0) > 0).map(s => momento(s.timestamp, s.fecha)),
+        ...compensaciones.filter(c => c.id_alumno === a.id_alumno && !c.anulada && esAjusteManual(c)).map(c => momento(c.timestamp, c.fecha_completada)),
+      ]
+        .filter(Boolean)
+        .map(t => (t.length > 10 ? new Date(t).getTime() : new Date(t + 'T00:00:00').getTime()))
+        .filter(n => !isNaN(n))
+        .sort((x, y) => x - y)
+        .pop() ?? -Infinity;
+      return !expedientes.some(e => e.id_alumno === a.id_alumno && new Date(e.fecha_creacion).getTime() >= ultimo);
     });
   }
 
@@ -1545,8 +1555,14 @@ export class StorageService {
    * Histórico de puntos del alumno, calculado a partir de sus partes y medidas restaurativas
    * (igual en todos los dispositivos). Del más reciente al más antiguo.
    */
+  /** Grupo del alumno (para la recuperación semanal, que solo tiene la ESO). */
+  static grupoDeAlumno(idAlumno: string): string | undefined {
+    const k = (idAlumno || '').toLowerCase().trim();
+    return this.getAlumnos().find((a) => (a.id_alumno || '').toLowerCase().trim() === k)?.grupo;
+  }
+
   static getMovimientosPorAlumno(idAlumno: string): MovimientoPuntos[] {
-    return calcularCarnet(idAlumno, this.getActiveSanciones(), this.getCompensaciones()).movimientos;
+    return calcularCarnet(idAlumno, this.getActiveSanciones(), this.getCompensaciones(), hoyLocal(), this.grupoDeAlumno(idAlumno)).movimientos;
   }
 
   static registrarMovimiento(movData: Omit<MovimientoPuntos, 'id_movimiento'>): MovimientoPuntos {
@@ -1745,7 +1761,7 @@ export class StorageService {
     countSanciones: number;
     estado: Alumno['estado'];
   } {
-    const r = calcularCarnet(idAlumno, this.getActiveSanciones(), this.getCompensaciones());
+    const r = calcularCarnet(idAlumno, this.getActiveSanciones(), this.getCompensaciones(), hoyLocal(), this.grupoDeAlumno(idAlumno));
     return {
       saldoActual: r.saldo,
       totalPuntosPerdidos: r.totalPuntosPerdidos,
@@ -1764,7 +1780,7 @@ export class StorageService {
     if (!target) {
       return { saldoAnterior: 10, saldoResultante: 10 };
     }
-    const r = calcularCarnet(target.id_alumno, sanciones, this.getCompensaciones());
+    const r = calcularCarnet(target.id_alumno, sanciones, this.getCompensaciones(), hoyLocal(), this.grupoDeAlumno(target.id_alumno));
     return r.saldosPorSancion.get(idSancion) || { saldoAnterior: 10, saldoResultante: 10 };
   }
 
@@ -1836,7 +1852,7 @@ export class StorageService {
     this.saveSanciones(sanciones);
 
     // Saldos reales antes/después de este parte según el orden cronológico
-    const tramo = calcularCarnet(alumno.id_alumno, this.getActiveSanciones(), this.getCompensaciones()).saldosPorSancion.get(idSancion);
+    const tramo = calcularCarnet(alumno.id_alumno, this.getActiveSanciones(), this.getCompensaciones(), hoyLocal(), alumno.grupo).saldosPorSancion.get(idSancion);
     if (tramo) {
       nuevaSancion.saldo_anterior = tramo.saldoAnterior;
       nuevaSancion.saldo_resultante = tramo.saldoResultante;
@@ -1890,7 +1906,7 @@ export class StorageService {
         return alumno;
       }
 
-      const r = calcularCarnet(alumno.id_alumno, activeSanciones, compensaciones, hoy);
+      const r = calcularCarnet(alumno.id_alumno, activeSanciones, compensaciones, hoy, alumno.grupo);
       const nuevoEstado: Alumno['estado'] = alumno.estado === 'BAJA' ? 'BAJA' : estadoPorSaldo(r.saldo);
 
       if (alumno.puntos_actuales !== r.saldo || alumno.historial_sanciones_count !== r.countSanciones || alumno.estado !== nuevoEstado) {
@@ -2105,6 +2121,87 @@ export class StorageService {
     );
 
     return { alumnoActualizado, nuevoSaldo, compensacion };
+  }
+
+  /**
+   * Ajuste manual de puntos (Jefatura/Convivencia): quita puntos sin tramitar un parte.
+   * Se guarda como compensación con puntos negativos (viaja a Drive y llega a todos los dispositivos).
+   * Reinicia el contador de recuperación semanal, igual que un parte que resta puntos.
+   */
+  static registrarAjustePuntos(
+    idAlumno: string,
+    puntosQuitar: number,
+    motivo: string,
+    profesorNombre: string,
+    usuarioEmail: string
+  ): { alumnoActualizado: Alumno; nuevoSaldo: number; compensacion: Compensacion } {
+    const alumno = this.getAlumnos().find(a => a.id_alumno === idAlumno);
+    if (!alumno) throw new Error(`Alumno no encontrado: ${idAlumno}`);
+    const texto = (motivo || '').trim();
+    if (!texto) throw new Error('Hay que indicar el motivo del ajuste.');
+
+    const saldoAnterior = this.calcularSaldoAlumno(idAlumno).saldoActual;
+    const puntos = Math.max(1, Math.min(10, Math.round(puntosQuitar) || 1));
+
+    const compensacion: Compensacion = {
+      id_compensacion: `aju-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      timestamp: new Date().toISOString(),
+      id_alumno: idAlumno,
+      id_profesor_autoriza: usuarioEmail,
+      nombre_profesor_autoriza: profesorNombre,
+      puntos_recuperados: -puntos,
+      tipo_tarea: 'Ajuste manual de puntos',
+      descripcion_tarea: texto,
+      fecha_completada: hoyLocal(),
+    };
+    this.saveCompensaciones([...this.getCompensaciones(), compensacion]);
+    this.addPendingSyncCompensacionId(compensacion.id_compensacion);
+
+    const alumnoActualizado = this.recalcularPuntosAlumnos(idAlumno).find(a => a.id_alumno === idAlumno) || alumno;
+    const nuevoSaldo = alumnoActualizado.puntos_actuales;
+
+    this.addAuditLog(
+      usuarioEmail,
+      'AJUSTE_PUNTOS',
+      `AjustePuntos/${alumno.nombre} ${alumno.apellidos}`,
+      `Ajuste manual de puntos sin parte (-${puntos} pts). Motivo: "${texto}". Saldo: ${saldoAnterior} -> ${nuevoSaldo}.`
+    );
+    return { alumnoActualizado, nuevoSaldo, compensacion };
+  }
+
+  /** Anula un ajuste manual de puntos (queda registrado quién, cuándo y por qué; no se borra). */
+  static anularAjustePuntos(
+    idCompensacion: string,
+    motivo: string,
+    usuarioEmail: string
+  ): { alumnoActualizado?: Alumno; nuevoSaldo?: number } {
+    const comps = this.getCompensaciones();
+    const i = comps.findIndex(c => c.id_compensacion === idCompensacion);
+    if (i === -1) throw new Error('Ajuste no encontrado');
+    const c = comps[i];
+    if (c.anulada) return {};
+    if ((Number(c.puntos_recuperados) || 0) >= 0) throw new Error('Solo se pueden anular ajustes manuales.');
+    const saldoAnterior = this.calcularSaldoAlumno(c.id_alumno).saldoActual;
+    comps[i] = {
+      ...c,
+      anulada: true,
+      anulada_por: usuarioEmail,
+      fecha_anulacion: new Date().toISOString(),
+      motivo_anulacion: (motivo || '').trim() || 'Error al registrar el ajuste',
+      puntos_ajuste_original: c.puntos_recuperados,
+      // A 0 para que también deje de contar en los dispositivos que solo reciben los puntos
+      puntos_recuperados: 0,
+    };
+    this.saveCompensaciones(comps);
+    this.addPendingSyncCompensacionId(idCompensacion);
+    const alumno = this.recalcularPuntosAlumnos(c.id_alumno).find(a => a.id_alumno === c.id_alumno);
+    this.addAuditLog(
+      usuarioEmail,
+      'ANULAR_AJUSTE_PUNTOS',
+      `AjustePuntos/${alumno ? `${alumno.nombre} ${alumno.apellidos}` : c.id_alumno}`,
+      `Anulado el ajuste manual del ${c.fecha_completada} (${c.puntos_recuperados} pts). Motivo: "${comps[i].motivo_anulacion}". Saldo: ${saldoAnterior} -> ${alumno?.puntos_actuales}.`
+    );
+    return { alumnoActualizado: alumno, nuevoSaldo: alumno?.puntos_actuales };
   }
 
   /**
@@ -2529,46 +2626,6 @@ export class StorageService {
       errores,
       bajas: aDarDeBaja.size,
     };
-  }
-
-  /**
-   * Elimina a todos los alumnos y partes disciplinarios generados
-   */
-  static vaciarAlumnosYSanciones(usuarioEmail: string): void {
-    const prevSanciones = this.getSanciones();
-    prevSanciones.forEach(s => {
-      if (s?.id_sancion) this.addDeletedSancionId(s.id_sancion);
-    });
-    const prevAlumnos = this.getAlumnos();
-    prevAlumnos.forEach(a => {
-      if (a?.id_alumno) this.addDeletedAlumnoId(a.id_alumno);
-    });
-
-    this.saveAlumnos([]);
-    this.saveSanciones([]);
-    this.saveCompensaciones([]);
-    this.saveMovimientos([]);
-    this.addAuditLog(
-      usuarioEmail,
-      'ACTUALIZACION_SISTEMA',
-      'Sistema/VaciadoAlumnosYSanciones',
-      'Eliminación completa de todos los alumnos y partes disciplinarios realizada con éxito.'
-    );
-  }
-
-  /**
-   * Reset database back to seed for demo or test purposes
-   */
-  static resetToSeed(usuarioEmail: string): void {
-    this.saveDeletedSancionIds([]);
-    this.saveDeletedAlumnoIds([]);
-    this.clearPendingSyncSancionIds();
-    this.saveAlumnos(ALUMNOS_INICIALES);
-    this.saveSanciones(SANCIONES_INICIALES);
-    this.saveCompensaciones(COMPENSACIONES_INICIALES);
-    this.saveAuditLogs(AUDIT_LOGS_INICIALES);
-    this.saveMovimientos(MOVIMIENTOS_INICIALES);
-    this.addAuditLog(usuarioEmail, 'IMPORTACION_MASIVA', 'Sistema/Reset', 'Restablecimiento a datos oficiales iniciales V0.');
   }
 
   /**

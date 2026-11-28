@@ -29,15 +29,29 @@ const e2 = S.crearExpediente({id_alumno:'b1',conducta_art37:6,fecha_desde:'2026-
 ok('al abrir los expedientes desaparece el aviso', S.getAlumnosPendientesDeExpediente().length===0);
 S.marcarTramite(e1.id_expediente,'llamada_familia',true,ADMIN);
 let x = S.getExpedientes().find((e:any)=>e.id_expediente===e1.id_expediente);
-ok('marcar una casilla guarda quién y cuándo (1/4)', x.tramites.llamada_familia.hecho && x.tramites.llamada_familia.por===ADMIN && !!x.tramites.llamada_familia.fecha && !x.completado);
+ok('marcar una casilla guarda quién y cuándo (1/5)', x.tramites.llamada_familia.hecho && x.tramites.llamada_familia.por===ADMIN && !!x.tramites.llamada_familia.fecha && !x.completado);
 ['enviado_direccion','enviado_familia','aviso_equipo_docente'].forEach(k=>S.marcarTramite(e1.id_expediente,k,true,ADMIN));
 x = S.getExpedientes().find((e:any)=>e.id_expediente===e1.id_expediente);
-ok('al marcar las 4, el expediente queda completado', x.completado && !!x.fecha_completado);
+ok('con 4 de 5 (falta Séneca) sigue pendiente', !x.completado && !x.tramites.guardado_seneca.hecho);
+S.marcarTramite(e1.id_expediente,'guardado_seneca',true,ADMIN);
+x = S.getExpedientes().find((e:any)=>e.id_expediente===e1.id_expediente);
+ok('al marcar las 5, el expediente queda completado', x.completado && !!x.fecha_completado);
 S.marcarTramite(e1.id_expediente,'aviso_equipo_docente',false,ADMIN);
 ok('desmarcar una vuelve a "pendiente"', !S.getExpedientes().find((e:any)=>e.id_expediente===e1.id_expediente).completado);
 S.completarExpediente(e2.id_expediente,ADMIN);
 x = S.getExpedientes().find((e:any)=>e.id_expediente===e2.id_expediente);
-ok('botón "todos completados" marca las 4 casillas', x.completado && Object.values(x.tramites).every((t:any)=>t.hecho));
+ok('botón "todos completados" marca las 5 casillas', x.completado && Object.keys(x.tramites).length===5 && Object.values(x.tramites).every((t:any)=>t.hecho));
+{ // expediente antiguo (anterior a la casilla de Séneca): 4 trámites sin 'guardado_seneca'
+  const viejo = { ...S.crearExpediente({id_alumno:'a1',conducta_art37:2,fecha_desde:'2026-10-01',fecha_hasta:'2026-10-02',dias_acude:'',modalidad:'AULA_CONVIVENCIA',fecha_documento:hoy},ADMIN) };
+  const t = { ...viejo.tramites }; delete t.guardado_seneca; viejo.tramites = t;
+  S.saveExpedientes(S.getExpedientes().map((e:any)=>e.id_expediente===viejo.id_expediente?viejo:e));
+  ['llamada_familia','enviado_direccion','enviado_familia','aviso_equipo_docente'].forEach(k=>S.marcarTramite(viejo.id_expediente,k,true,ADMIN));
+  ok('expediente antiguo: sin la casilla de Séneca no se da por completado', !S.getExpedientes().find((e:any)=>e.id_expediente===viejo.id_expediente).completado);
+  S.completarExpediente(viejo.id_expediente,ADMIN);
+  const v = S.getExpedientes().find((e:any)=>e.id_expediente===viejo.id_expediente);
+  ok('expediente antiguo: "todos completados" añade también Séneca', v.completado && v.tramites.guardado_seneca?.hecho);
+  S.eliminarExpediente(viejo.id_expediente,ADMIN);
+}
 caido=true; let p = await G.pushToGoogleDrive(); ok('sin red: no se da por guardado', !p.success);
 const cola = JSON.parse(g.localStorage.getItem('sigc_bi_cola_pendiente_v1')||'{}');
 ok('sin red: los expedientes quedan guardados en el navegador', (cola.expedientes||[]).length===2);
@@ -49,6 +63,24 @@ ok('ve los 2 expedientes con sus casillas', S.getExpedientes().length===2 && S.g
 S.eliminarExpediente(e2.id_expediente,ADMIN); await G.pushToGoogleDrive();
 ok('eliminar un expediente lo borra de Drive', JSON.parse(srv.archivos['DB']).expedientes_sancion.length===1);
 ok('...y el alumno vuelve a aparecer en el aviso de 0 puntos', S.getAlumnosPendientesDeExpediente().some((a:any)=>a.id_alumno==='b1'));
+{ // alumna con expediente ya abierto que vuelve a 0 por un ajuste manual de puntos (sin parte)
+  const al = S.getAlumnos().find((a:any)=>a.id_alumno==='a1');
+  const viejo = S.getExpedientes().find((e:any)=>e.id_alumno==='a1');
+  S.saveExpedientes(S.getExpedientes().map((e:any)=>e.id_expediente===viejo.id_expediente?{...e,fecha_creacion:'2026-01-10T10:00:00.000Z'}:e));
+  S.saveSanciones(S.getSanciones().map((x:any)=>x.id_alumno==='a1'?{...x,fecha:'2026-01-09'}:x));
+  S.recalcularPuntosAlumnos('a1');
+  if (S.getAlumnos().find((a:any)=>a.id_alumno==='a1').puntos_actuales>0) S.registrarAjustePuntos('a1',10,'prueba ajuste','M G',ADMIN);
+  ok('ajuste manual que deja a 0 (con expediente anterior): sale en el aviso rojo', S.getAlumnos().find((a:any)=>a.id_alumno==='a1').puntos_actuales===0 && S.getAlumnosPendientesDeExpediente().some((a:any)=>a.id_alumno==='a1'));
+  // expediente abierto HOY y, después, otro hecho que quita puntos el mismo día
+  const nuevo = S.crearExpediente({id_alumno:'a1',conducta_art37:1,fecha_desde:hoy,fecha_hasta:hoy,dias_acude:'',modalidad:'AULA_CONVIVENCIA',fecha_documento:hoy},ADMIN);
+  ok('tras abrir el expediente hoy, deja de salir en el aviso', !S.getAlumnosPendientesDeExpediente().some((a:any)=>a.id_alumno==='a1'));
+  S.saveExpedientes(S.getExpedientes().map((e:any)=>e.id_expediente===nuevo.id_expediente?{...e,fecha_creacion:new Date(Date.now()-60000).toISOString()}:e));
+  S.registrarAjustePuntos('a1',1,'otro hecho hoy','M G',ADMIN);
+  ok('mismo día, hecho registrado DESPUÉS del expediente: vuelve a salir', S.getAlumnosPendientesDeExpediente().some((a:any)=>a.id_alumno==='a1'));
+  S.eliminarExpediente(nuevo.id_expediente,ADMIN);
+  S.saveExpedientes(S.getExpedientes().map((e:any)=>e.id_expediente===viejo.id_expediente?viejo:e));
+  void al;
+}
 
 console.log('== Tutora de 1º ESO A y docente sin tutoría');
 yo = await entrar(TUT,'tere2026');

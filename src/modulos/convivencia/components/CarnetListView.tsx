@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { hoyLocal } from '../services/carnetPuntos';
+import { hoyLocal, historicoSancionesPorAlumno, historicoDe } from '../services/carnetPuntos';
 import { 
   Search, 
   PlusCircle, 
@@ -77,6 +77,7 @@ export const CarnetListView: React.FC<CarnetListViewProps> = ({
   alumnos,
   sanciones,
   profesores = [],
+  compensaciones = [],
   expedientes = [],
   onAbrirExpediente,
   currentUser,
@@ -122,6 +123,15 @@ export const CarnetListView: React.FC<CarnetListViewProps> = ({
   const [puntosMedida, setPuntosMedida] = useState<number>(2);
   const [descripcionMedida, setDescripcionMedida] = useState<string>('');
 
+  // Ajuste manual de puntos (quitar puntos sin parte; Jefatura/Convivencia)
+  const [ajusteModalAlumno, setAjusteModalAlumno] = useState<Alumno | null>(null);
+  const [puntosAjuste, setPuntosAjuste] = useState<number>(1);
+  const [motivoAjuste, setMotivoAjuste] = useState<string>('');
+  const [ajusteError, setAjusteError] = useState<string | null>(null);
+  const [ajusteAAnular, setAjusteAAnular] = useState<MovimientoPuntos | null>(null);
+  const [motivoAnulacion, setMotivoAnulacion] = useState<string>('');
+  const [versionMovimientos, setVersionMovimientos] = useState(0);
+
   // Modal para Dar de Baja a un Alumno/a
   const [alumnoABajar, setAlumnoABajar] = useState<Alumno | null>(null);
   const [motivoBajaAlumnoInput, setMotivoBajaAlumnoInput] = useState<string>('Traslado a otro centro educativo');
@@ -131,10 +141,6 @@ export const CarnetListView: React.FC<CarnetListViewProps> = ({
   // Modal para Eliminar Individualmente a un Alumno/a del Censo
   const [alumnoAEliminar, setAlumnoAEliminar] = useState<Alumno | null>(null);
   const [isDeletingAlumno, setIsDeletingAlumno] = useState(false);
-
-  // Modal para Vaciar / Eliminar Todos los Alumnos del Censo
-  const [modalVaciarTodosAlumnos, setModalVaciarTodosAlumnos] = useState(false);
-  const [isVaciandoAlumnos, setIsVaciandoAlumnos] = useState(false);
 
   // Modal para Modificar Datos de un Alumno/a (Nombre, Apellidos, Curso, etc.)
   const [alumnoAEditar, setAlumnoAEditar] = useState<Alumno | null>(null);
@@ -173,6 +179,15 @@ export const CarnetListView: React.FC<CarnetListViewProps> = ({
   const todayStr = hoyLocal();
 
   // Conteo de activos y bajas
+  // Histórico de sanciones de cada alumno: nº de expedientes de sanción y veces que se ha quedado a 0 puntos
+  const historicoSanciones = useMemo(
+    () => {
+      const grupos = new Map(alumnos.map((a) => [(a.id_alumno || '').toLowerCase().trim(), a.grupo]));
+      return historicoSancionesPorAlumno(sanciones, compensaciones, expedientes, (id) => grupos.get((id || '').toLowerCase().trim()));
+    },
+    [sanciones, compensaciones, expedientes, alumnos]
+  );
+
   const countActivos = useMemo(() => alumnos.filter(a => a.estado !== 'BAJA').length, [alumnos]);
   const countBajas = useMemo(() => alumnos.filter(a => a.estado === 'BAJA').length, [alumnos]);
 
@@ -377,6 +392,49 @@ export const CarnetListView: React.FC<CarnetListViewProps> = ({
     }
   };
 
+  const abrirAjuste = (alumno: Alumno) => {
+    setAjusteModalAlumno(alumno);
+    setPuntosAjuste(Math.max(1, alumno.puntos_actuales));
+    setMotivoAjuste('');
+    setAjusteError(null);
+  };
+
+  // Confirmar ajuste manual (quitar puntos sin parte)
+  const handleConfirmAjuste = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ajusteModalAlumno) return;
+    if (!Number.isInteger(puntosAjuste) || puntosAjuste < 1 || puntosAjuste > ajusteModalAlumno.puntos_actuales) return;
+    if (!motivoAjuste.trim()) { setAjusteError('Indica el motivo del ajuste.'); return; }
+    try {
+      StorageService.registrarAjustePuntos(
+        ajusteModalAlumno.id_alumno,
+        puntosAjuste,
+        motivoAjuste,
+        `${currentUser.nombre} ${currentUser.apellidos}`,
+        currentUser.email
+      );
+      setAjusteModalAlumno(null);
+      setMotivoAjuste('');
+      setVersionMovimientos(v => v + 1);
+      if (onDataChanged) onDataChanged();
+    } catch (err: any) {
+      setAjusteError(err?.message || 'No se pudo registrar el ajuste.');
+    }
+  };
+
+  const handleConfirmAnularAjuste = () => {
+    if (!ajusteAAnular?.id_compensacion) return;
+    try {
+      StorageService.anularAjustePuntos(ajusteAAnular.id_compensacion, motivoAnulacion, currentUser.email);
+      setAjusteAAnular(null);
+      setMotivoAnulacion('');
+      setVersionMovimientos(v => v + 1);
+      if (onDataChanged) onDataChanged();
+    } catch (err: any) {
+      console.error(err);
+    }
+  };
+
   // Renderizar los 10 puntos discretos del carnet
   const renderCarnetDots = (puntos: number) => {
     return (
@@ -411,7 +469,7 @@ export const CarnetListView: React.FC<CarnetListViewProps> = ({
   const modalMovimientos = useMemo(() => {
     if (!historyModalAlumno) return [];
     return StorageService.getMovimientosPorAlumno(historyModalAlumno.id_alumno);
-  }, [historyModalAlumno, sanciones]);
+  }, [historyModalAlumno, sanciones, versionMovimientos]);
 
   return (
     <div className="space-y-6">
@@ -433,7 +491,7 @@ export const CarnetListView: React.FC<CarnetListViewProps> = ({
             </p>
           </div>
 
-          {/* Botón de acción Jefatura: Recuperación semanal automática y Vaciar Censo */}
+          {/* Botón de acción Jefatura: Recuperación semanal automática */}
           {isAdmin && (
             <div className="flex flex-wrap items-center gap-2 shrink-0">
               <button
@@ -441,23 +499,12 @@ export const CarnetListView: React.FC<CarnetListViewProps> = ({
                 onClick={handleTriggerWeeklyRecovery}
                 disabled={isExecutingWeekly}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-sky-50 hover:bg-sky-100 text-sky-900 border border-sky-200 rounded-xl text-xs font-bold transition-colors cursor-pointer"
-                title="La recuperación semanal (+1 punto cada 7 días sin partes) se aplica sola. Este botón solo actualiza los saldos en pantalla."
+                title="La recuperación semanal (+1 punto cada 7 días sin partes, solo alumnado de ESO) se aplica sola. Este botón solo actualiza los saldos en pantalla."
               >
                 <RotateCcw className={`w-3.5 h-3.5 ${isExecutingWeekly ? 'animate-spin' : ''}`} />
                 <span>Actualizar saldos (recuperación automática)</span>
               </button>
 
-              {alumnos.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setModalVaciarTodosAlumnos(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-colors cursor-pointer"
-                  title="Eliminar todos los alumnos del censo para volver a dejar el sistema limpio"
-                >
-                  <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-                  <span>Vaciar Censo ({alumnos.length})</span>
-                </button>
-              )}
             </div>
           )}
         </div>
@@ -733,6 +780,17 @@ export const CarnetListView: React.FC<CarnetListViewProps> = ({
                   <div className="pt-2">
                     {renderCarnetDots(alumno.puntos_actuales)}
                   </div>
+
+                  {/* Histórico de sanciones */}
+                  {(() => {
+                    const h = historicoDe(historicoSanciones, alumno.id_alumno);
+                    const hay = h.sanciones > 0 || h.vecesSaldoCero > 0;
+                    return (
+                      <div className={`mt-2 text-[11px] ${hay ? 'text-rose-800 font-semibold' : 'text-slate-400'}`}>
+                        Sancionado/a: {h.sanciones} {h.sanciones === 1 ? 'vez' : 'veces'} · A 0 puntos: {h.vecesSaldoCero} {h.vecesSaldoCero === 1 ? 'vez' : 'veces'}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Acciones y enlace a Ficha Completa */}
@@ -770,6 +828,17 @@ export const CarnetListView: React.FC<CarnetListViewProps> = ({
                             title="Registrar medida educativa/restaurativa cumplida (+X pts)"
                           >
                             + Restaurar
+                          </button>
+                        )}
+
+                        {isAdmin && alumno.puntos_actuales > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => abrirAjuste(alumno)}
+                            className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-800 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer"
+                            title="Quitar puntos sin poner un parte (ajuste manual, queda registrado)"
+                          >
+                            − Quitar puntos
                           </button>
                         )}
 
@@ -885,6 +954,23 @@ export const CarnetListView: React.FC<CarnetListViewProps> = ({
                 {renderCarnetDots(historyModalAlumno.puntos_actuales)}
               </div>
             </div>
+
+            {/* Histórico de sanciones: nº de expedientes y veces a 0 puntos */}
+            {(() => {
+              const h = historicoDe(historicoSanciones, historyModalAlumno.id_alumno);
+              return (
+                <div className="grid grid-cols-2 gap-2">
+                  <div className={`px-3 py-2 rounded-xl border ${h.sanciones ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-200'}`}>
+                    <div className={`text-lg font-bold font-mono ${h.sanciones ? 'text-rose-800' : 'text-slate-700'}`}>{h.sanciones}</div>
+                    <div className="text-[11px] text-slate-600">{h.sanciones === 1 ? 'vez sancionado/a' : 'veces sancionado/a'} (expedientes de sanción)</div>
+                  </div>
+                  <div className={`px-3 py-2 rounded-xl border ${h.vecesSaldoCero ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-200'}`}>
+                    <div className={`text-lg font-bold font-mono ${h.vecesSaldoCero ? 'text-rose-800' : 'text-slate-700'}`}>{h.vecesSaldoCero}</div>
+                    <div className="text-[11px] text-slate-600">{h.vecesSaldoCero === 1 ? 'vez' : 'veces'} a 0 puntos</div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Partes Disciplinarios Activos del Alumno */}
             {(() => {
@@ -1072,6 +1158,16 @@ export const CarnetListView: React.FC<CarnetListViewProps> = ({
                           <div className="text-[10px] font-mono text-slate-500 mt-1">
                             Saldo: {mov.saldo_anterior} → <strong>{mov.saldo_resultante}</strong>
                           </div>
+                          {isAdmin && mov.tipo === 'AJUSTE_MANUAL' && mov.id_compensacion && (
+                            <button
+                              type="button"
+                              onClick={() => { setAjusteAAnular(mov); setMotivoAnulacion(''); }}
+                              className="mt-1 text-[10px] text-rose-700 underline hover:text-rose-900 cursor-pointer"
+                              title="Anular este ajuste (por error); queda registrado"
+                            >
+                              Anular ajuste
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
@@ -1108,6 +1204,17 @@ export const CarnetListView: React.FC<CarnetListViewProps> = ({
                         className="px-3 py-2 bg-sky-50 hover:bg-sky-100 text-sky-800 rounded-xl text-xs font-semibold cursor-pointer"
                       >
                         Registrar Medida Educativa (+X pts)
+                      </button>
+                    )}
+
+                    {isAdmin && historyModalAlumno.puntos_actuales > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => abrirAjuste(historyModalAlumno)}
+                        className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-800 rounded-xl text-xs font-semibold cursor-pointer"
+                        title="Quitar puntos sin poner un parte (ajuste manual, queda registrado)"
+                      >
+                        Quitar puntos sin parte (−X pts)
                       </button>
                     )}
 
@@ -1268,6 +1375,143 @@ export const CarnetListView: React.FC<CarnetListViewProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL PARA AJUSTE MANUAL DE PUNTOS (quitar puntos sin parte) */}
+      {ajusteModalAlumno && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 border border-rose-100 space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-rose-100 pb-3">
+              <div>
+                <h2 className="text-sm font-bold text-slate-900">Quitar puntos sin parte (ajuste manual)</h2>
+                <p className="text-xs text-slate-500 font-mono">
+                  {ajusteModalAlumno.nombre} {ajusteModalAlumno.apellidos} ({ajusteModalAlumno.grupo})
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAjusteModalAlumno(null)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmAjuste} className="space-y-4 text-xs">
+              <div>
+                <label htmlFor="puntos-ajuste" className="block font-semibold text-slate-700 mb-1">
+                  Puntos a quitar (de 1 a {ajusteModalAlumno.puntos_actuales}):
+                </label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    id="puntos-ajuste"
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={ajusteModalAlumno.puntos_actuales}
+                    step={1}
+                    required
+                    autoFocus
+                    value={Number.isFinite(puntosAjuste) && puntosAjuste > 0 ? puntosAjuste : ''}
+                    onChange={(e) => {
+                      const v = parseInt(e.target.value, 10);
+                      setPuntosAjuste(Number.isFinite(v) ? Math.max(1, Math.min(ajusteModalAlumno.puntos_actuales, v)) : NaN);
+                    }}
+                    className="w-24 rounded-xl border border-slate-300 px-3 py-2 text-base font-mono font-bold text-center bg-white focus:border-rose-600 focus:ring-1 focus:ring-rose-600"
+                  />
+                  <span className="text-slate-500">puntos</span>
+                  <button
+                    type="button"
+                    onClick={() => setPuntosAjuste(ajusteModalAlumno.puntos_actuales)}
+                    className="ml-auto px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold cursor-pointer"
+                    title="Quitar todos los puntos que tiene ahora"
+                  >
+                    Dejar en 0 (−{ajusteModalAlumno.puntos_actuales})
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="motivo-ajuste" className="block font-semibold text-slate-700 mb-1">
+                  Motivo (obligatorio, queda registrado):
+                </label>
+                <textarea
+                  id="motivo-ajuste"
+                  rows={3}
+                  value={motivoAjuste}
+                  onChange={(e) => { setMotivoAjuste(e.target.value); setAjusteError(null); }}
+                  placeholder="Ej: Estaba a 0 puntos pendiente de sanción y ha recuperado 1 punto por la regla semanal"
+                  className="w-full rounded-xl border border-slate-300 p-2 bg-slate-50 text-xs focus:bg-white"
+                  required
+                />
+              </div>
+
+              <div className="bg-rose-50 p-3 rounded-xl text-[11px] text-rose-950 space-y-1">
+                <div className="font-mono">
+                  Saldo: {ajusteModalAlumno.puntos_actuales} → <strong>{Math.max(0, ajusteModalAlumno.puntos_actuales - (Number.isFinite(puntosAjuste) ? puntosAjuste : 0))} / 10 pts</strong>
+                </div>
+                <p>
+                  No es un parte: no se imprime, no avisa al tutor/a ni cuenta como parte en las estadísticas. La recuperación
+                  semanal (+1 cada 7 días, solo ESO) sigue contando desde el último parte, no desde hoy.
+                </p>
+              </div>
+
+              {ajusteError && <p className="text-[11px] text-rose-700 font-semibold">{ajusteError}</p>}
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setAjusteModalAlumno(null)}
+                  className="px-3 py-2 bg-slate-100 text-slate-700 rounded-xl cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-rose-600 text-white font-bold rounded-xl shadow-xs cursor-pointer hover:bg-rose-700"
+                >
+                  Quitar puntos
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRMAR ANULACIÓN DE UN AJUSTE MANUAL */}
+      {ajusteAAnular && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-5 border border-rose-100 space-y-3 text-xs">
+            <h2 className="text-sm font-bold text-slate-900">¿Anular este ajuste de puntos?</h2>
+            <p className="text-slate-600">
+              Ajuste del {ajusteAAnular.fecha} ({ajusteAAnular.puntos} pts) registrado por {ajusteAAnular.profesor_nombre}.
+              El alumno/a recuperará esos puntos y el ajuste dejará de contar. La anulación queda registrada.
+            </p>
+            <textarea
+              rows={2}
+              value={motivoAnulacion}
+              onChange={(e) => setMotivoAnulacion(e.target.value)}
+              placeholder="Motivo de la anulación (ej: alumno equivocado)"
+              className="w-full rounded-xl border border-slate-300 p-2 bg-slate-50 text-xs focus:bg-white"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setAjusteAAnular(null)}
+                className="px-3 py-2 bg-slate-100 text-slate-700 rounded-xl cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmAnularAjuste}
+                className="px-4 py-2 bg-rose-600 text-white font-bold rounded-xl cursor-pointer hover:bg-rose-700"
+              >
+                Anular ajuste
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1717,71 +1961,6 @@ export const CarnetListView: React.FC<CarnetListViewProps> = ({
       )}
 
       {/* MODAL VACIAR TODOS LOS ALUMNOS DEL CENSO */}
-      {modalVaciarTodosAlumnos && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 border border-rose-200 space-y-4 animate-in fade-in zoom-in-95">
-            <div className="flex items-center gap-3 text-rose-700">
-              <div className="p-2.5 bg-rose-100 rounded-xl">
-                <AlertTriangle className="w-6 h-6 text-rose-700" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-slate-900">
-                  ¿Vaciar y eliminar todos los alumnos?
-                </h3>
-                <p className="text-xs text-rose-600 font-semibold">
-                  Se eliminarán los {alumnos.length} alumnos del censo
-                </p>
-              </div>
-            </div>
-
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Esta acción eliminará todos los alumnos añadidos y dejará el censo del <strong>IES Blas Infante</strong> completamente vacío a cero, listo para realizar una nueva importación oficial limpia desde Séneca o archivo ODS/Excel.
-            </p>
-
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-950 flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-              <div className="text-[11px] leading-relaxed">
-                <strong>Atención:</strong> Las cuentas del claustro de profesores y sus contraseñas <strong>NO</strong> se borrarán. Solo se limpian los alumnos y partes registrados.
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-              <button
-                type="button"
-                disabled={isVaciandoAlumnos}
-                onClick={() => setModalVaciarTodosAlumnos(false)}
-                className="px-3.5 py-2 text-xs text-slate-600 hover:text-slate-800 cursor-pointer rounded-xl hover:bg-slate-100 font-semibold"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={isVaciandoAlumnos}
-                onClick={async () => {
-                  setIsVaciandoAlumnos(true);
-                  try {
-                    StorageService.vaciarAlumnosYSanciones(currentUser.email);
-                    setModalVaciarTodosAlumnos(false);
-                    setBajaActionMsg({
-                      type: 'success',
-                      text: '¡Censo de alumnos vaciado por completo con éxito! El sistema ha quedado a 0 alumnos.'
-                    });
-                    if (onDataChanged) onDataChanged();
-                    GoogleDriveSyncService.pushToGoogleDrive().catch(() => {});
-                    setTimeout(() => setBajaActionMsg(null), 6000);
-                  } finally {
-                    setIsVaciandoAlumnos(false);
-                  }
-                }}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>{isVaciandoAlumnos ? 'Vaciando...' : `Confirmar Borrado de ${alumnos.length} Alumnos`}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* MODAL MODIFICAR PARTE */}
       {parteToEdit && onEditParte && (

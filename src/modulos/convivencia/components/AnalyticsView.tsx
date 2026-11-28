@@ -4,6 +4,7 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { PartesPorDocentePanel } from './PartesPorDocentePanel';
 import { 
   BarChart3, 
   MapPin, 
@@ -42,6 +43,7 @@ import {
   Sancion, 
   Alumno, 
   Compensacion,
+  Profesor,
   CodigoInfraccionROF, 
   TramoHorario, 
   UbicacionCentro 
@@ -60,6 +62,7 @@ import { generateMemoriaConvivenciaPdf } from '../utils/pdfGenerator';
 interface AnalyticsViewProps {
   sanciones: Sancion[];
   alumnos: Alumno[];
+  profesores?: Profesor[];
   compensaciones?: Compensacion[];
   onNavigateToCarnet?: (idAlumno?: string) => void;
 }
@@ -77,6 +80,7 @@ const TRAMOS_HEATMAP: TramoHorario[] = [
 
 const UBICACIONES_LIST: string[] = [
   'Aula ordinaria',
+  'Guardia',
   'Pasillos',
   'Patio',
   'Cafetería',
@@ -102,6 +106,7 @@ type DetailModalType = 'INFRACCIONES' | 'PUNTOS' | 'PAC' | 'CUMPLIMIENTO' | null
 export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ 
   sanciones, 
   alumnos, 
+  profesores = [],
   compensaciones = [],
   onNavigateToCarnet 
 }) => {
@@ -217,7 +222,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   const calculateYearStats = (sancionesList: Sancion[], compensacionesList: Compensacion[]) => {
     const totalPartes = sancionesList.length;
     const totalPuntosPerdidos = sancionesList.reduce((acc, s) => acc + s.puntos_restados, 0);
-    const puntosRestituidos = compensacionesList.reduce((acc, c) => acc + c.puntos_recuperados, 0);
+    const puntosRestituidos = compensacionesList.reduce((acc, c) => acc + Math.max(0, Number(c.puntos_recuperados) || 0), 0);
     const pacDerivados = sancionesList.filter(s => s.derivado_pac).length;
     const pacCompletados = sancionesList.filter(s => s.derivado_pac && s.estado_pac === 'TAREAS_COMPLETADAS').length;
     const pacTasaComparecencia = pacDerivados > 0 ? Math.round((pacCompletados / pacDerivados) * 100) : 100;
@@ -601,7 +606,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
       const clean = rawLoc.toLowerCase();
       let key = 'Otros';
 
-      if (clean.includes('aula') || clean.includes('clase')) {
+      if (clean.includes('guardia')) {
+        key = 'Guardia';
+      } else if (clean.includes('aula') || clean.includes('clase')) {
         key = 'Aula ordinaria';
       } else if (clean.includes('pasillo') || clean.includes('edificio a') || clean.includes('aseo')) {
         key = 'Pasillos';
@@ -1563,7 +1570,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
                   <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full ${
-                        loc.includes('Pasillo') || loc.includes('Patio')
+                        loc === 'Guardia'
+                          ? 'bg-rose-500'
+                          : loc.includes('Pasillo') || loc.includes('Patio')
                           ? 'bg-amber-500'
                           : 'bg-sky-600'
                       }`}
@@ -1619,6 +1628,15 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* 8. PARTES POR DOCENTE (semana, mes o curso elegido arriba) */}
+      <PartesPorDocentePanel
+        sanciones={sanciones}
+        profesores={profesores}
+        periodos={['SEMANA', 'MES', 'CURSO']}
+        sancionesCurso={datasetYearA}
+        etiquetaCurso={`Curso ${selectedYear}`}
+      />
 
       {/* ========================================================================= */}
       {/* DETAIL MODAL 1: TOTAL INFRACCIONES */}
