@@ -1485,7 +1485,8 @@ function panelLeer(req) {
     return c;
   });
   return { ok: true, profesores: profesores, horarios: db.horarios || [], pendientes: db.horarios_pendientes || [],
-           sustituciones: db.sustituciones || [], curso: cursoActual(db), cursosArchivados: db.cursos_archivados || [] };
+           sustituciones: db.sustituciones || [], curso: cursoActual(db), cursosArchivados: db.cursos_archivados || [],
+           equivalencias: db.equivalencias_grupos || {} };
 }
 
 /** Panel: cambia los permisos de un docente. Siempre debe quedar al menos un administrador del panel. */
@@ -1573,6 +1574,17 @@ function guardarHorarios(req) {
       if (filas.length) pendientes.push({ nombre: nombre, filas: filas });
     });
     db.horarios_pendientes = (db.horarios_pendientes || []).filter(function (pe) { return pe && !tocadas[pe.nombre]; }).concat(pendientes);
+    // Equivalencias de grupos (texto de Séneca → grupo, '' = no es un grupo): del centro, iguales en cualquier ordenador
+    var eq = req.equivalencias;
+    if (eq && typeof eq === 'object' && !Array.isArray(eq)) {
+      var guardadas = db.equivalencias_grupos || {};
+      Object.keys(eq).slice(0, 500).forEach(function (t) {
+        var texto = String(t).replace(/\s+/g, ' ').trim().slice(0, 80);
+        var g = String(eq[t] || '').trim();
+        if (texto && (g === '' || /^[0-9A-Z_]+$/.test(g))) guardadas[texto] = g;
+      });
+      db.equivalencias_grupos = guardadas;
+    }
     registrarAuditoria(db, s.email, 'Horarios', 'Horario guardado: ' + nuevas.length + ' horas de ' + Object.keys(docentes).length +
       ' docentes; ' + pendientes.length + ' horarios sin docente.');
     escribirDb(db);
@@ -2258,7 +2270,7 @@ function guardar(req) {
 // Datos que solo gestiona el servidor: nunca se toman de lo que envía la app
 var CLAVES_SERVIDOR = ['credenciales_profesores', 'credenciales_v1_alternativas', 'reset_credenciales_emails',
   'migracion_v2', 'saldos_antes_v2', 'horarios', 'permisos_intranet', 'horarios_pendientes', 'sustituciones',
-  'curso_actual', 'cursos_archivados', 'fecha_cambio_curso', 'mi_horario'];
+  'curso_actual', 'cursos_archivados', 'fecha_cambio_curso', 'mi_horario', 'equivalencias_grupos'];
 
 /**
  * Lista de lo que la app dice haber cambiado (entrada.cambios). Si existe, de lo demás se conserva
