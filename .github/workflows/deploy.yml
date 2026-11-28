@@ -25,6 +25,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+        env:
+          # Solo el repositorio del centro se compila en PRODUCCIÓN; el de desarrollo, siempre en PRUEBAS
+          VITE_ENTORNO: ${{ endsWith(github.repository, '/intranetiesbi.github.io') && 'PRODUCCION' || 'PRUEBAS' }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist

@@ -47,7 +47,7 @@ import {
   AlumnoImportRow,
   ProfesorImportRow 
 } from '../services/odsImportService';
-import { CUENTA_DRIVE, CARPETA_DRIVE_ID, ARCHIVO_DB_DRIVE, PREFIJO_BACKUP, NOMBRE_UNIDAD_DRIVE } from '../config/entorno';
+import { CUENTA_DRIVE, CARPETA_DRIVE_ID, ARCHIVO_DB_DRIVE, PREFIJO_BACKUP, NOMBRE_UNIDAD_DRIVE, ES_ENTORNO_PRUEBAS } from '../config/entorno';
 
 interface EtlImportViewProps {
   currentUser: Profesor;
@@ -816,8 +816,37 @@ El Amrani Youssef,4º ESO D`;
           </a>
         </div>
       )}
-      {/* Top Banner: Storage Info & Cloud Architecture */}
-      {(!seccion || seccion === 'copias' || seccion === 'convivencia') && (
+      {/* PRODUCCIÓN (acordado el 19/11/2026): sin «Vaciar alumnos y partes» ni el recuadro de infraestructura;
+          en Copias de seguridad solo queda el botón de descargar la copia completa */}
+      {!ES_ENTORNO_PRUEBAS && (!seccion || seccion === 'copias') && (
+      <div className="bg-white border border-sky-100 rounded-2xl p-5 shadow-xs space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h1 className="text-lg font-bold text-slate-900">Copia de seguridad</h1>
+            <p className="text-xs text-slate-600 mt-1">
+              Descarga en este equipo un archivo con todos los datos de convivencia. Guárdalo en un sitio seguro: contiene datos personales.
+            </p>
+          </div>
+          <button
+            onClick={handleCreateSnapshot}
+            disabled={isBackingUp}
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-950 text-xs font-bold rounded-xl transition-colors cursor-pointer shadow-2xs"
+          >
+            <Download className={`w-3.5 h-3.5 text-emerald-700 ${isBackingUp ? 'animate-bounce' : ''}`} />
+            <span>{isBackingUp ? 'Generando y descargando...' : 'Descargar copia completa'}</span>
+          </button>
+        </div>
+        {backupMessage && (
+          <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-xs text-emerald-950 font-medium flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+            <span>{backupMessage}</span>
+          </div>
+        )}
+      </div>
+      )}
+
+      {/* Top Banner: Storage Info & Cloud Architecture (solo PRUEBAS) */}
+      {ES_ENTORNO_PRUEBAS && (!seccion || seccion === 'copias' || seccion === 'convivencia') && (
       <div className="bg-white border border-sky-100 rounded-2xl p-5 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-sky-100 pb-4">
           <div>
