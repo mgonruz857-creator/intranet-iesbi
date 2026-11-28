@@ -4,6 +4,14 @@
  */
 import type { LucideIcon } from 'lucide-react';
 import { ShieldCheck, DoorOpen, CalendarClock, Settings2 } from 'lucide-react';
+import { ES_ENTORNO_PRUEBAS } from '../config/entorno';
+
+/**
+ * Salidas y Guardias aún no se usan en el centro (decisión de Miguel Ángel, 28/11/2026): en PRODUCCIÓN se ven
+ * apagadas con «Próximamente» y no se puede entrar. Para abrirlas en el centro, poner aquí true.
+ */
+const SALIDAS_Y_GUARDIAS_EN_EL_CENTRO = false;
+const salidasYGuardiasDisponibles = ES_ENTORNO_PRUEBAS || SALIDAS_Y_GUARDIAS_EN_EL_CENTRO;
 
 export type IdModulo = 'convivencia' | 'salidas' | 'guardias' | 'panel';
 
@@ -30,14 +38,14 @@ export const MODULOS: Modulo[] = [
     nombre: 'Salidas al baño',
     descripcion: 'Autorizar y registrar las salidas del alumnado durante las clases.',
     icono: DoorOpen,
-    disponible: true,
+    disponible: salidasYGuardiasDisponibles,
   },
   {
     id: 'guardias',
     nombre: 'Guardias',
     descripcion: 'Ausencias del profesorado y cobertura de guardias.',
     icono: CalendarClock,
-    disponible: true,
+    disponible: salidasYGuardiasDisponibles,
   },
   {
     id: 'panel',

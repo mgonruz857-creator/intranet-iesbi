@@ -1,6 +1,11 @@
 # Módulo de convivencia (SIGC-BI)
 
 Copiado de `mgonruz857-creator/ConvivenciaIesbiClaude` (commit b5fb30f, 21/10/2026) a `src/modulos/convivencia/`.
+El 28/11/2026, antes del paso al centro, se trajeron los cambios de la app del centro del 31/10 al 12/11
+(hasta `convivenciaiesbi.github.io` 46066c6: móvil con dos conductas, «Guardia» como lugar, PDF con 5ª casilla
+«guardado en Séneca», partes por docente, histórico de veces a 0 puntos, «Quitar puntos sin parte», aviso rojo de
+expedientes sin completar, recuperación semanal solo en la ESO y sin botones de borrado masivo). Desde ese día la
+convivencia solo se cambia aquí.
 Las notas siguientes vienen de su CLAUDE.md, con las rutas adaptadas a la intranet.
 
 Importante: el servidor de PRODUCCIÓN (`API_Convivencia_BlasInfante`, implementación `…HimLNQ`) es el que usa

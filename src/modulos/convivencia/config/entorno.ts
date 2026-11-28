@@ -35,15 +35,17 @@ const CONFIG: Record<Entorno, ConfigDrive> = {
     urlApp: 'https://mgonruz857-creator.github.io/intranet-iesbi/#/convivencia',
   },
   PRODUCCION: {
+    // Servidor único de la intranet en la cuenta del centro (proyecto API_Intranet_PRODUCCION).
+    // Su archivo de datos es una COPIA del de la app de convivencia antigua, hecha el día del cambio
+    // (28/11/2026). La app antigua (convivenciaiesbi.github.io), su servidor y su carpeta no se tocan.
     urlApi:
-      'https://script.google.com/macros/s/AKfycbyrmV69dBgcg9WD0mx4tQLWeZtbqSR7odMS87HS5VyOPQL90RNNZMkpp5HHGZ30HimLNQ/exec',
+      'https://script.google.com/macros/s/AKfycbzyxJgKThLBXz7E0qgmbQhMxtS31XZcmHsCZ5j_MagfR5Z7GPYWy2Q48PqXZIIxUCm8/exec', // API_Intranet_PRODUCCION
     cuenta: '14007180.aplicaciones@g.educaand.es',
-    carpetaId: '1S5zjeSgcfVkL-eoQLsJ9I_ltHAnRrbaS',
-    nombreCarpeta: 'CONVIVENCIA_IES_BLAS_INFANTE',
-    archivoDb: '00_SIGC_BD_CENTRO_BLAS_INFANTE.json',
-    nombreUnidad: 'Unidad Compartida Convivencia - IES Blas Infante',
-    // Sigue siendo la app del centro hasta que la intranet la sustituya
-    urlApp: 'https://convivenciaiesbi.github.io/',
+    carpetaId: '1sEI0H7cAwRViVDwtGuQfVdaqsqFPSUcv', // proyectoIntranet/PRODUCCION
+    nombreCarpeta: 'proyectoIntranet/PRODUCCION',
+    archivoDb: '00_SIGC_BD_INTRANET.json',
+    nombreUnidad: 'Intranet IES Blas Infante (cuenta del centro)',
+    urlApp: 'https://intranetiesbi.github.io/#/convivencia',
   },
 };
 

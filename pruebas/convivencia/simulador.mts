@@ -19,7 +19,7 @@ export function crearServidor(codigo: string, archivoInicial?: any, opciones?: {
     getId: () => 'id-' + k,
     getName: () => (k === 'DB' ? ARCHIVO_DB_DRIVE : k),
     setName: (n: string) => { archivos[n] = archivos[k]; drive.fechas[n] = drive.fechas[k]; delete archivos[k]; delete drive.fechas[k]; k = n; },
-    getBlob: () => ({ getDataAsString: () => archivos[k] }),
+    getBlob: () => ({ getDataAsString: () => archivos[k], getBytes: () => Array.from(Buffer.from(archivos[k], 'utf8')).map(b => b > 127 ? b - 256 : b) }),
     setContent: (t: string) => { if (drive.fallosEscritura > 0) { drive.fallosEscritura--; t = ''; } archivos[k] = t; drive.fechas[k] = drive.reloj++; },
     getLastUpdated: () => new Date(drive.fechas[k] || 0),
     getSize: () => Buffer.byteLength(archivos[k] || '', 'utf8'),
@@ -42,7 +42,8 @@ export function crearServidor(codigo: string, archivoInicial?: any, opciones?: {
     ContentService: { MimeType: { JSON: 'json' }, createTextOutput: (t: string) => ({ setMimeType: () => ({ texto: t }) }) },
     CacheService: { getScriptCache: () => ({ get: (k: string) => cache.has(k) ? cache.get(k)! : null, put: (k: string, v: string) => { cache.set(k, v) }, remove: (k: string) => { cache.delete(k) }, removeAll: (ks: string[]) => { ks.forEach(k => cache.delete(k)) },
       getAll: (ks: string[]) => { const r: any = {}; ks.forEach(k => { if (cache.has(k)) r[k] = cache.get(k) }); return r; }, putAll: (o: any) => { for (const k in o) cache.set(k, o[k]) } }) },
-    PropertiesService: { getScriptProperties: () => ({ getProperty: (k: string) => props.get(k) ?? null, setProperty: (k: string, v: string) => { props.set(k, v) }, deleteProperty: (k: string) => { props.delete(k) } }) },
+    PropertiesService: { getScriptProperties: () => ({ getProperty: (k: string) => props.get(k) ?? null, setProperty: (k: string, v: string) => { props.set(k, v) }, deleteProperty: (k: string) => { props.delete(k) },
+      getProperties: () => Object.fromEntries(props), setProperties: (o: Record<string, string>) => { for (const k in o) props.set(k, o[k]) } }) },
     LockService: { getScriptLock: () => ({
       waitLock: () => { if (lockOcupado) throw new Error('Bloqueo anidado o simultáneo en el simulador'); lockOcupado = true; opciones?.esperaLock?.(); },
       releaseLock: () => { lockOcupado = false; } }) },

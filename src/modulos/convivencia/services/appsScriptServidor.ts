@@ -70,6 +70,94 @@ function restablecerClaveAdministrador() {
   Logger.log('Contraseña de ' + email + ' restablecida. Fije una nueva en el próximo acceso a la app.');
 }
 
+// ------------------------------------------------------------------ Paso desde la app de convivencia antigua
+
+var ARCHIVO_MIGRACION = 'MIGRACION_DESDE_CONVIVENCIA.json';
+
+/** Cuántos elementos tiene cada apartado del archivo de datos (sin mostrar ningún dato). */
+function recuentoApartados(db) {
+  var r = {};
+  for (var k in db) {
+    if (Object.prototype.toString.call(db[k]) === '[object Array]') r[k] = db[k].length;
+    else if (db[k] && typeof db[k] === 'object') r[k] = Object.keys(db[k]).length;
+  }
+  return r;
+}
+
+function resumenSha256(bytes) {
+  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, bytes)
+    .map(function (b) { var h = (b & 255).toString(16); return h.length === 1 ? '0' + h : h; }).join('');
+}
+
+/**
+ * EDITOR, una sola vez, el día del cambio (después de ejecutar intranetExportar en la app antigua).
+ * 1) Comprueba que la copia del archivo de datos es idéntica al original y compara los recuentos.
+ * 2) Pasa las contraseñas del profesorado (y la clave con la que están cifradas), para que todos
+ *    entren con la de siempre.
+ * 3) Manda a la papelera el archivo de paso, que lleva esas contraseñas cifradas.
+ * No escribe nada en el archivo de datos.
+ */
+function importarDesdeConvivencia() {
+  var props = propiedades();
+  var paso = archivoEnCarpeta(ARCHIVO_MIGRACION);
+  if (!paso) {
+    Logger.log('No está el archivo ' + ARCHIVO_MIGRACION + ' en la carpeta. Primero hay que ejecutar intranetExportar en la app antigua.');
+    return;
+  }
+  var m = JSON.parse(paso.getBlob().getDataAsString());
+
+  // 1) El archivo de datos
+  var archivos = DriveApp.getFolderById(CARPETA_ID).getFilesByName(ARCHIVO_DB);
+  var lista = [];
+  while (archivos.hasNext()) lista.push(archivos.next());
+  if (lista.length !== 1) {
+    Logger.log('PARADO: en la carpeta hay ' + lista.length + ' archivos llamados ' + ARCHIVO_DB + ' (tiene que haber exactamente 1). No se ha cambiado nada.');
+    return;
+  }
+  var bytes = lista[0].getBlob().getBytes();
+  var identico = resumenSha256(bytes) === m.sha256;
+  var copia = recuentoApartados(JSON.parse(lista[0].getBlob().getDataAsString()));
+  Logger.log(identico ? 'DATOS: la copia es IDÉNTICA al original (byte a byte).'
+                      : 'AVISO: la copia NO es idéntica al original. Revise los recuentos de abajo antes de seguir.');
+  var claves = {};
+  Object.keys(m.recuento || {}).concat(Object.keys(copia)).forEach(function (k) { claves[k] = true; });
+  var distintos = 0;
+  Object.keys(claves).sort().forEach(function (k) {
+    var a = (m.recuento || {})[k], b = copia[k];
+    if (a !== b) distintos++;
+    Logger.log((a === b ? '   ok  ' : '  ¡¡ DISTINTO !!  ') + k + ': original ' + a + ' · copia ' + b);
+  });
+  if (!identico || distintos) {
+    Logger.log('PARADO: no se han pasado las contraseñas. Avise antes de seguir.');
+    return;
+  }
+
+  // 2) Las contraseñas
+  var origen = m.propiedades || {};
+  var nuevas = Object.keys(origen).filter(function (k) { return k.indexOf('CLAVE_') === 0; });
+  var yaAqui = Object.keys(props.getProperties()).filter(function (k) { return k.indexOf('CLAVE_') === 0; });
+  if (yaAqui.length && origen.SECRETO_SERVIDOR && props.getProperty('SECRETO_SERVIDOR') &&
+      props.getProperty('SECRETO_SERVIDOR') !== origen.SECRETO_SERVIDOR) {
+    Logger.log('PARADO: alguien ya ha entrado en la intranet nueva (' + yaAqui.length + ' contraseña(s) creadas aquí). Avise antes de seguir.');
+    return;
+  }
+  var poner = {};
+  if (origen.SECRETO_SERVIDOR) poner.SECRETO_SERVIDOR = origen.SECRETO_SERVIDOR;
+  nuevas.forEach(function (k) { poner[k] = origen[k]; });
+  // Partes que cada tutor/a ya ha visto (así no le salen todos como nuevos)
+  Object.keys(origen).forEach(function (k) { if (k.indexOf('TUT_VISTOS_') === 0) poner[k] = origen[k]; });
+  props.setProperties(poner, false);
+  var enArchivo = Object.keys(JSON.parse(lista[0].getBlob().getDataAsString()).credenciales_profesores || {}).length;
+  Logger.log('CONTRASEÑAS: pasadas ' + nuevas.length + ' guardadas en el servidor antiguo' +
+    (enArchivo ? ' y ' + enArchivo + ' que van dentro del archivo de datos' : '') + '.');
+  Logger.log('Profesorado en el archivo: ' + (copia.profesores || 0) + '. Quien no tuviera contraseña la elegirá al entrar por primera vez.');
+
+  // 3) Fuera el archivo de paso
+  paso.setTrashed(true);
+  props.setProperty('IMPORTADO_DESDE_CONVIVENCIA', new Date().toISOString());
+  Logger.log('TERMINADO. El archivo de paso se ha enviado a la papelera.');
+}
+
 /**
  * Comprobación de los datos (solo cuenta; no modifica nada ni muestra datos personales).
  * Elegir "diagnosticoDatos" en el desplegable de arriba, pulsar "Ejecutar" y mirar el

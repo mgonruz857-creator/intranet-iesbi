@@ -47,7 +47,7 @@ import {
   AlumnoImportRow,
   ProfesorImportRow 
 } from '../services/odsImportService';
-import { CUENTA_DRIVE, CARPETA_DRIVE_ID, ARCHIVO_DB_DRIVE, PREFIJO_BACKUP, NOMBRE_UNIDAD_DRIVE } from '../config/entorno';
+import { CUENTA_DRIVE, CARPETA_DRIVE_ID, ARCHIVO_DB_DRIVE, PREFIJO_BACKUP, NOMBRE_UNIDAD_DRIVE, ES_ENTORNO_PRUEBAS } from '../config/entorno';
 
 interface EtlImportViewProps {
   currentUser: Profesor;
@@ -111,7 +111,6 @@ export const EtlImportView: React.FC<EtlImportViewProps> = ({
 
   const [isBackingUp, setIsBackingUp] = useState(false);
   const [backupMessage, setBackupMessage] = useState<string | null>(null);
-  const [modalVaciarOpen, setModalVaciarOpen] = useState(false);
 
   // Academic year management state
 
@@ -284,7 +283,28 @@ El Amrani Youssef,4º ESO D`;
     }
   };
 
+  // Número de registros que se van a importar (para la confirmación previa)
+  const contarRegistrosAImportar = (): number => {
+    if (activeImportTab === 'alumnos' && odsLoadedRows && odsLoadedRows.length > 0) return odsLoadedRows.length;
+    if (activeImportTab !== 'alumnos' && odsLoadedProfesores && odsLoadedProfesores.length > 0) return odsLoadedProfesores.length;
+    const lines = csvContent.split(/\r?\n/).filter(l => l.trim().length > 0);
+    const first = (lines[0] || '').toLowerCase();
+    const tieneCabecera = ['apellido', 'nombre', 'alumno', 'correo', 'email', 'curso'].some(k => first.includes(k));
+    return Math.max(0, lines.length - (tieneCabecera ? 1 : 0));
+  };
+
   const handleRunImport = () => {
+    const n = contarRegistrosAImportar();
+    const tipo = activeImportTab === 'alumnos'
+      ? (n === 1 ? 'alumno/a' : 'alumnos/as')
+      : (n === 1 ? 'docente' : 'docentes');
+    if (!window.confirm(
+      `Se van a importar ${n} ${tipo}.\n\n` +
+      'Los que no existan se darán de alta y los que ya existan se actualizarán con los datos del archivo. ' +
+      'No se borra a nadie.\n\n¿Continuar con la importación?'
+    )) {
+      return;
+    }
     try {
       if (activeImportTab === 'alumnos') {
         if (odsLoadedRows && odsLoadedRows.length > 0) {
@@ -431,24 +451,6 @@ El Amrani Youssef,4º ESO D`;
         setBackupMessage(`⚠️ Error al generar copia: ${err.message || err}`);
       }
     }, 400);
-  };
-
-  const handleConfirmarVaciar = () => {
-    StorageService.vaciarAlumnosYSanciones(currentUser.email);
-    setModalVaciarOpen(false);
-    setActionFeedbackMsg({
-      type: 'success',
-      text: 'Se han eliminado correctamente todos los alumnos y partes generados. El censo ha quedado listo para la ingesta oficial.'
-    });
-    onImportCompleted();
-    setTimeout(() => setActionFeedbackMsg(null), 6000);
-  };
-
-  const handleLoadSampleInEditor = () => {
-    setOdsLoadedRows(null);
-    setOdsLoadedProfesores(null);
-    setLoadedFileName('');
-    setCsvContent(activeImportTab === 'alumnos' ? sampleAlumnosCsv : sampleProfesoresCsv);
   };
 
   const handleConfirmarBajaProfesor = () => {
@@ -816,8 +818,37 @@ El Amrani Youssef,4º ESO D`;
           </a>
         </div>
       )}
-      {/* Top Banner: Storage Info & Cloud Architecture */}
-      {(!seccion || seccion === 'copias' || seccion === 'convivencia') && (
+      {/* PRODUCCIÓN (acordado el 19/11/2026): sin «Vaciar alumnos y partes» ni el recuadro de infraestructura;
+          en Copias de seguridad solo queda el botón de descargar la copia completa */}
+      {!ES_ENTORNO_PRUEBAS && (!seccion || seccion === 'copias') && (
+      <div className="bg-white border border-sky-100 rounded-2xl p-5 shadow-xs space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h1 className="text-lg font-bold text-slate-900">Copia de seguridad</h1>
+            <p className="text-xs text-slate-600 mt-1">
+              Descarga en este equipo un archivo con todos los datos de convivencia. Guárdalo en un sitio seguro: contiene datos personales.
+            </p>
+          </div>
+          <button
+            onClick={handleCreateSnapshot}
+            disabled={isBackingUp}
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-950 text-xs font-bold rounded-xl transition-colors cursor-pointer shadow-2xs"
+          >
+            <Download className={`w-3.5 h-3.5 text-emerald-700 ${isBackingUp ? 'animate-bounce' : ''}`} />
+            <span>{isBackingUp ? 'Generando y descargando...' : 'Descargar copia completa'}</span>
+          </button>
+        </div>
+        {backupMessage && (
+          <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-xs text-emerald-950 font-medium flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+            <span>{backupMessage}</span>
+          </div>
+        )}
+      </div>
+      )}
+
+      {/* Top Banner: Storage Info & Cloud Architecture (solo PRUEBAS) */}
+      {ES_ENTORNO_PRUEBAS && (!seccion || seccion === 'copias' || seccion === 'convivencia') && (
       <div className="bg-white border border-sky-100 rounded-2xl p-5 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-sky-100 pb-4">
           <div>
@@ -848,17 +879,6 @@ El Amrani Youssef,4º ESO D`;
             </button>
             )}
 
-            {seccion !== 'copias' && (
-            <button
-              type="button"
-              onClick={() => setModalVaciarOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-800 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
-              title="Elimina todos los alumnos y partes generados"
-            >
-              <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-              <span>Vaciar Alumnos y Partes</span>
-            </button>
-            )}
           </div>
         </div>
 
@@ -2509,13 +2529,6 @@ El Amrani Youssef,4º ESO D`;
                 />
               </label>
 
-              <button
-                type="button"
-                onClick={handleLoadSampleInEditor}
-                className="px-3 py-2 bg-white border border-sky-200 hover:bg-sky-50 text-sky-950 rounded-xl text-xs font-medium transition-colors cursor-pointer"
-              >
-                Cargar datos de prueba
-              </button>
             </div>
           </div>
 
@@ -2775,50 +2788,6 @@ El Amrani Youssef,4º ESO D`;
         </div>
       </div>
 
-      {/* Modal Confirmación de Vaciado de Alumnos y Partes */}
-      {modalVaciarOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl border border-slate-200 animate-in fade-in zoom-in-95 duration-100">
-            <div className="flex items-center gap-2 text-rose-700 font-bold text-sm">
-              <Trash2 className="w-5 h-5 text-rose-600" />
-              <span>Eliminar Alumnos y Partes (Puesta a Cero)</span>
-            </div>
-
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-950 space-y-2">
-              <p className="font-bold">
-                ¿Estás seguro de que deseas eliminar a todos los alumnos y todos los partes disciplinarios?
-              </p>
-              <ul className="list-disc list-inside text-[11px] text-rose-800 space-y-1">
-                <li>Se vaciará el censo completo de alumnos.</li>
-                <li>Se eliminarán todos los partes disciplinarios registrados.</li>
-                <li>Se vaciarán las compensaciones e historial de movimientos.</li>
-                <li><strong>El claustro de profesores y la configuración del centro se mantendrán intactos.</strong></li>
-              </ul>
-            </div>
-
-            <p className="text-xs text-slate-500">
-              Esta acción deja el sistema completamente limpio para proceder con la importación oficial de los archivos definitivos del centro.
-            </p>
-
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setModalVaciarOpen(false)}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmarVaciar}
-                className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-colors cursor-pointer shadow-xs"
-              >
-                Sí, Eliminar Alumnos y Partes
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

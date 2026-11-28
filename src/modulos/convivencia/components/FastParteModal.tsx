@@ -40,6 +40,7 @@ import {
 import { 
   CATALOGO_CONDUCTAS_V0, 
   MEDIDAS_INMEDIATAS_CATALOG,
+  medidasInmediatasPermitidas,
   obtenerTipificacionNormativa,
   calcularPuntosInfraccion,
   esGrupoInformatica
@@ -247,8 +248,11 @@ export const FastParteModal: React.FC<FastParteModalProps> = ({
   // Selección de conducta
   const handleSelectConducta = (cod: CodigoConductaV0) => {
     setSelectedConductaCodigo(cod);
-    if (cod === 'GRA-MOVIL-USO' || cod === 'GRA-MOVIL-ENTREGA') {
+    if (cod === 'GRA-MOVIL-USO') {
       setMedidaInmediata('RETIRADA_MOVIL');
+    } else if (cod === 'GRA-MOVIL-ENTREGA') {
+      // No entrega el móvil: no cabe la retirada; por defecto, derivación a Jefatura
+      setMedidaInmediata('DERIVACION_JEFATURA');
     } else if (cod === 'LEV-PASILLO') {
       setMedidaInmediata('AMONESTACION_VERBAL');
     } else if (cod === 'GRA-AGRESION' || cod === 'GRA-AMENAZAS') {
@@ -273,8 +277,8 @@ export const FastParteModal: React.FC<FastParteModalProps> = ({
     'LEV-INCORRECCION': 'Respuesta desconsiderada y tono inadecuado al requerimiento efectuado por el profesorado.',
     'LEV-DANOS': 'Deterioro leve intencionado de mobiliario escolar (pintadas en la mesa de clase).',
     'LEV-PASILLO': 'Encontrado/a en pasillos sin justificación ni pase autorizado durante el tramo lectivo.',
-    'GRA-MOVIL-USO': 'Uso y manipulación de teléfono móvil en el aula sin autorización docente.',
-    'GRA-MOVIL-ENTREGA': 'Negativa explícita a depositar el smartphone ante el requerimiento formal del docente.',
+    'GRA-MOVIL-USO': 'Uso de teléfono móvil en el aula sin autorización docente. Lo entrega y guarda cuando se le solicita.',
+    'GRA-MOVIL-ENTREGA': 'Uso de teléfono móvil en el aula sin autorización docente. Se niega a entregarlo o guardarlo cuando se le solicita.',
     'GRA-AGRESION': 'Agresión física hacia otro alumno en el recinto escolar.',
     'GRA-INJURIAS': 'Insultos y descalificaciones graves dirigidas hacia un miembro de la comunidad educativa.',
     'GRA-ACOSO': 'Conducta intimidatoria reiterada. Se remite informe a Jefatura para valoración de protocolo.',
@@ -704,7 +708,7 @@ export const FastParteModal: React.FC<FastParteModalProps> = ({
             >
               <div>CONDUCTAS GRAVES</div>
               <div className={`text-[10px] font-normal ${activeTabTipo === 'GRAVE' ? 'text-rose-100' : 'text-slate-400'}`}>
-                {isInfGroup ? 'Régimen INF (Siempre -10 pts)' : 'Art. 37 / Móvil (-5 a -10 pts)'}
+                {isInfGroup ? 'Régimen INF (Siempre -10 pts)' : 'Art. 37 / Móvil (0 a -10 pts)'}
               </div>
             </button>
 
@@ -833,8 +837,8 @@ export const FastParteModal: React.FC<FastParteModalProps> = ({
             </span>
           </div>
 
-          {/* Cuadrícula interactiva de 6 ubicaciones requeridas */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+          {/* Cuadrícula interactiva de ubicaciones (7, con Guardia) */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
             {LISTA_UBICACIONES_OFICIALES.map((u) => {
               const isSelected = ubicacion === u.codigo;
               return (
@@ -1048,7 +1052,7 @@ export const FastParteModal: React.FC<FastParteModalProps> = ({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {MEDIDAS_INMEDIATAS_CATALOG.map(m => {
+            {medidasInmediatasPermitidas(selectedConductaCodigo).map(m => {
               const isSelected = medidaInmediata === m.valor;
               return (
                 <button
