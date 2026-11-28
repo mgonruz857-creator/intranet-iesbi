@@ -1,3 +1,4 @@
+import { ahoraIntranet } from '../../nucleo/RelojPruebas';
 export interface UsuarioGuardias { email: string; nombre: string; jefatura: boolean }
 
 export interface Guardia {
@@ -36,7 +37,8 @@ export function fechaLarga(f: string): string {
 }
 
 export function hoyTexto(): string {
-  const p = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  // ahoraIntranet: la hora del servidor (en PRUEBAS puede ser simulada con el reloj de pruebas)
+  const p = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ahoraIntranet()));
   return p; // yyyy-mm-dd
 }
 

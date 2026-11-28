@@ -35,7 +35,7 @@
 
 // ───────────────────────── Configuración ─────────────────────────
 
-var VERSION = '1.4.1';
+var VERSION = '1.5.0';
 var ZONA = 'Europe/Madrid';
 var DOMINIO = '@g.educaand.es';
 var CUPO_EDIFICIO = 2;              // máximo de alumnos fuera a la vez en cada edificio (A y B)
@@ -182,6 +182,7 @@ function atender_(req, ahora, emailUnico) {
       case 'profesorado': return listaProfesorado_(usuario);
       case 'guardarHorario': return conCerrojo_(function () { return guardarHorario_(usuario, req); });
       case 'restablecerClave': return restablecerClave_(usuario, req);
+      case 'relojPruebas': return relojPruebas_(req);
       default: return fallo_('ERROR_ACCION');
     }
   } catch (err) {
@@ -889,10 +890,38 @@ function onEdit(e) {
   if (nombre === HOJA_PROFESORADO || nombre === HOJA_ALUMNADO || nombre === HOJA_HORARIO) limpiarCache();
 }
 
+// ───────────────────────── Reloj de pruebas (solo servidor único de PRUEBAS) ─────────────────────────
+
+/** El reloj simulado solo se puede cambiar desde la web en el servidor único de PRUEBAS (ES_PRUEBAS de Intranet.gs). */
+function relojPermitido_() { return typeof ES_PRUEBAS !== 'undefined' && ES_PRUEBAS === true; }
+
+/**
+ * Acción relojPruebas: sin datos devuelve el reloj; { fijar: 'AAAA-MM-DD HH:mm' } hace que la intranet crea que es
+ * ese día y esa hora (y el reloj avanza desde ahí); { quitar: true } vuelve a la hora real. Es común a salidas y
+ * guardias (propiedad RELOJ_PRUEBAS del proyecto). En PRODUCCIÓN no existe.
+ */
+function relojPruebas_(req) {
+  if (!relojPermitido_()) return fallo_('ERROR_ACCION');
+  var props = PropertiesService.getScriptProperties();
+  if (req.quitar) props.deleteProperty('RELOJ_PRUEBAS');
+  else if (req.fijar) {
+    var m = /^(\d{4}-\d{2}-\d{2})[ T](\d{1,2}):(\d{2})$/.exec(String(req.fijar));
+    if (!m) return fallo_('ERROR_PETICION');
+    var base = new Date(m[1] + 'T12:00:00Z');
+    if (isNaN(base.getTime())) return fallo_('ERROR_PETICION');
+    var ficticio = base.getTime() + ((Number(m[2]) * 60 + Number(m[3])) - minutosDe_(base)) * 60000;
+    props.setProperty('RELOJ_PRUEBAS', JSON.stringify({ real: new Date().getTime(), ficticio: ficticio }));
+  }
+  var ahora = ahoraServidor_();
+  return { ok: true, simulado: relojSimulado_() !== null, ahora: ahora.getTime(),
+    texto: Utilities.formatDate(ahora, ZONA, 'yyyy-MM-dd HH:mm') };
+}
+
 // ───────────────────────── Funciones de editor ─────────────────────────
 
-/** Reloj simulado: { real, ficticio } en milisegundos, o null si está apagado. */
+/** Reloj simulado: { real, ficticio } en milisegundos, o null si está apagado (en PRODUCCIÓN, siempre null). */
 function relojSimulado_() {
+  if (typeof ES_PRUEBAS !== 'undefined' && ES_PRUEBAS !== true) return null;
   var v = PropertiesService.getScriptProperties().getProperty('RELOJ_PRUEBAS');
   return v ? JSON.parse(v) : null;
 }

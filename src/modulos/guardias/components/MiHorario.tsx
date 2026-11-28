@@ -1,3 +1,4 @@
+import { ahoraIntranet } from '../../../nucleo/RelojPruebas';
 import { useEffect, useState } from 'react';
 import { Printer } from 'lucide-react';
 import { llamarApi } from '../api';
@@ -15,7 +16,7 @@ export default function MiHorario({ usuario, avisar }: Props) {
   const [horas, setHoras] = useState<Hora[] | null>(null);
   const [sustituyeA, setSustituyeA] = useState('');
   // En el móvil se ve un día cada vez: hoy (o el lunes en fin de semana)
-  const [diaMovil, setDiaMovil] = useState(() => { const d = new Date().getDay(); return d >= 1 && d <= 5 ? d : 1; });
+  const [diaMovil, setDiaMovil] = useState(() => { const d = new Date(ahoraIntranet()).getDay(); return d >= 1 && d <= 5 ? d : 1; });
   const [profesorado, setProfesorado] = useState<{ email: string; nombre: string }[]>([]);
 
   useEffect(() => {

@@ -48,3 +48,12 @@ cada módulo sea más rápido.
   salidas dentro, cambios al momento, errores aislados, sin red, cierre de sesión).
 - Servidor local: `SERVIDOR_UNICO=1 npx tsx pruebas/convivencia/servidor-local.mts` y
   `VITE_URL_API_CONVIVENCIA=http://localhost:8788 npm run dev`.
+
+## Reloj de pruebas (salidas 1.5.0 y guardias 1.5.0, 28/11/2026)
+
+Solo en PRUEBAS: en Salidas y en Guardias aparece arriba la barra "Reloj de pruebas" (`src/nucleo/RelojPruebas.tsx`)
+para simular un día y una hora (con botones de 1ª a 6ª hora y recreo) y volver a la hora real. Acción `relojPruebas`
+de cada módulo (`{ fijar: 'AAAA-MM-DD HH:mm' }` o `{ quitar: true }`); guarda la propiedad `RELOJ_PRUEBAS` del proyecto,
+común a los dos módulos, y el reloj sigue avanzando desde ahí. Solo funciona si Intranet.gs es de PRUEBAS
+(`ES_PRUEBAS`); en PRODUCCIÓN la acción no existe y `RELOJ_PRUEBAS` se ignora. Prueba: `pruebas/reloj_pruebas.test.mts`.
+El reloj de convivencia y del panel no cambia.

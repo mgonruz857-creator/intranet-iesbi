@@ -37,7 +37,7 @@
 
 // ───────────────────────── Configuración ─────────────────────────
 
-var VERSION = '1.4.0';
+var VERSION = '1.5.0';
 var ZONA = 'Europe/Madrid';
 var DOMINIO = '@g.educaand.es';
 var DURACION_SESION_SEG = 21600;    // 6 horas (máximo de CacheService), se renueva con el uso
@@ -97,7 +97,7 @@ function doPost(e) {
   } catch (err) {
     return salida_(fallo_('ERROR_PETICION'));
   }
-  return salida_(atender_(req, new Date()));
+  return salida_(atender_(req, ahoraServidor_()));
 }
 
 function atender_(req, ahora, emailUnico) {
@@ -131,6 +131,7 @@ function atender_(req, ahora, emailUnico) {
       case 'descargarTarea': return descargarTarea_(u, req);
       case 'recuento': return recuento_(u, ahora);
       case 'profesorado': return listaProfesorado_(u);
+      case 'relojPruebas': return relojPruebas_(req);
       default: return fallo_('ERROR_ACCION');
     }
   } catch (err) {
@@ -801,9 +802,49 @@ function limpiar_(v, max) {
 // ───────────────────────── Servidor único de la intranet ─────────────────────────
 
 /** Lo que el servidor central usa de este módulo cuando va en su mismo proyecto. */
+/** Reloj simulado: { real, ficticio } en milisegundos, o null si está apagado (en PRODUCCIÓN, siempre null). */
+function relojSimulado_() {
+  if (typeof ES_PRUEBAS !== 'undefined' && ES_PRUEBAS !== true) return null;
+  var v = PropertiesService.getScriptProperties().getProperty('RELOJ_PRUEBAS');
+  return v ? JSON.parse(v) : null;
+}
+
+function ahoraServidor_() {
+  var r = relojSimulado_();
+  var ahora = new Date();
+  return r ? new Date(r.ficticio + (ahora.getTime() - r.real)) : ahora;
+}
+
+// ───────────────────────── Reloj de pruebas (solo servidor único de PRUEBAS) ─────────────────────────
+
+/** El reloj simulado solo se puede cambiar desde la web en el servidor único de PRUEBAS (ES_PRUEBAS de Intranet.gs). */
+function relojPermitido_() { return typeof ES_PRUEBAS !== 'undefined' && ES_PRUEBAS === true; }
+
+/**
+ * Acción relojPruebas: sin datos devuelve el reloj; { fijar: 'AAAA-MM-DD HH:mm' } hace que la intranet crea que es
+ * ese día y esa hora (y el reloj avanza desde ahí); { quitar: true } vuelve a la hora real. Es común a salidas y
+ * guardias (propiedad RELOJ_PRUEBAS del proyecto). En PRODUCCIÓN no existe.
+ */
+function relojPruebas_(req) {
+  if (!relojPermitido_()) return fallo_('ERROR_ACCION');
+  var props = PropertiesService.getScriptProperties();
+  if (req.quitar) props.deleteProperty('RELOJ_PRUEBAS');
+  else if (req.fijar) {
+    var m = /^(\d{4}-\d{2}-\d{2})[ T](\d{1,2}):(\d{2})$/.exec(String(req.fijar));
+    if (!m) return fallo_('ERROR_PETICION');
+    var base = new Date(m[1] + 'T12:00:00Z');
+    if (isNaN(base.getTime())) return fallo_('ERROR_PETICION');
+    var ficticio = base.getTime() + ((Number(m[2]) * 60 + Number(m[3])) - minutosDe_(base)) * 60000;
+    props.setProperty('RELOJ_PRUEBAS', JSON.stringify({ real: new Date().getTime(), ficticio: ficticio }));
+  }
+  var ahora = ahoraServidor_();
+  return { ok: true, simulado: relojSimulado_() !== null, ahora: ahora.getTime(),
+    texto: Utilities.formatDate(ahora, ZONA, 'yyyy-MM-dd HH:mm') };
+}
+
 function interfazUnica_() {
   return {
-    atender: function (req, email) { return atender_(req, new Date(), email); },
+    atender: function (req, email) { return atender_(req, ahoraServidor_(), email); },
     limpiarCacheCentral: limpiarCache,
     editor: { configurarHoja: configurarHoja, probarServidorCentral: probarServidorCentral, limpiarCache: limpiarCache }
   };

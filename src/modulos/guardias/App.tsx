@@ -4,6 +4,7 @@ import Dia from './components/Dia';
 import Ausencias from './components/Ausencias';
 import Recuento from './components/Recuento';
 import MiHorario from './components/MiHorario';
+import RelojPruebas from '../../nucleo/RelojPruebas';
 import { EVENTO_SESION_CADUCADA, guardarToken, llamarApi, tokenGuardado, usarServidorUnico } from './api';
 import { ES_ENTORNO_PRUEBAS } from './config/entorno';
 import type { Guardia, UsuarioGuardias } from './tipos';
@@ -27,6 +28,7 @@ export default function App() {
   const [vista, setVista] = useState<Vista>('dia');
   const [aviso, setAviso] = useState<AvisoDatos | null>(null);
   const [misGuardias, setMisGuardias] = useState<Guardia[]>([]);
+  const [reloj, setReloj] = useState(0); // cambia al simular otro día y hora (solo PRUEBAS)
 
   // Al entrar: las guardias que tiene asignadas hoy
   useEffect(() => {
@@ -34,7 +36,7 @@ export default function App() {
     let vigente = true;
     llamarApi<{ guardias: Guardia[] }>('misGuardias').then((r) => { if (vigente && r.ok) setMisGuardias(r.guardias || []); });
     return () => { vigente = false; };
-  }, [usuario, vista]);
+  }, [usuario, vista, reloj]);
 
   const avisar = useCallback((texto: string, esError = false) => setAviso({ texto, error: esError, id: Date.now() }), []);
 
@@ -150,6 +152,7 @@ export default function App() {
             </div>
           </header>
           <main className="max-w-6xl mx-auto px-4 py-4 print:max-w-none print:p-0">
+            <div className="print:hidden mb-4 empty:hidden"><RelojPruebas llamar={llamarApi} alCambiar={() => setReloj((n) => n + 1)} /></div>
             {misGuardias.length > 0 && (
               <div role="status" className="print:hidden mb-4 rounded-2xl border border-amber-300 bg-amber-50 p-3 text-amber-950">
                 <div className="flex items-center gap-2 font-bold text-sm">
@@ -171,10 +174,10 @@ export default function App() {
                 )}
               </div>
             )}
-            {vista === 'dia' && <Dia usuario={usuario} avisar={avisar} />}
-            {vista === 'ausencias' && <Ausencias usuario={usuario} avisar={avisar} />}
-            {vista === 'horario' && <MiHorario usuario={usuario} avisar={avisar} />}
-            {vista === 'recuento' && usuario.jefatura && <Recuento avisar={avisar} />}
+            {vista === 'dia' && <Dia key={reloj} usuario={usuario} avisar={avisar} />}
+            {vista === 'ausencias' && <Ausencias key={reloj} usuario={usuario} avisar={avisar} />}
+            {vista === 'horario' && <MiHorario key={reloj} usuario={usuario} avisar={avisar} />}
+            {vista === 'recuento' && usuario.jefatura && <Recuento key={reloj} avisar={avisar} />}
           </main>
         </>
       )}
